@@ -17,11 +17,14 @@ type Client struct {
 	Events            *EventService
 	WebhookEndpoints  *WebhookEndpointService
 	RecurringInvoices *RecurringInvoiceService
+	ReceivedInvoices  *ReceivedInvoiceService
 	Companies         *CompanyService
 	Members           *MemberService
 	APIKeys           *APIKeyService
 	Exports           *ExportService
 	EReporting        *EReportingService
+	Reporting         *ReportingService
+	Mfa               *MfaService
 	Jobs              *JobService
 	Sandbox           *SandboxService
 
@@ -80,11 +83,14 @@ func New(apiKey string, opts ...ClientOption) *Client {
 	c.Events = &EventService{client: hc}
 	c.WebhookEndpoints = &WebhookEndpointService{client: hc}
 	c.RecurringInvoices = &RecurringInvoiceService{client: hc}
+	c.ReceivedInvoices = &ReceivedInvoiceService{client: hc}
 	c.Companies = &CompanyService{client: hc}
 	c.Members = &MemberService{client: hc}
 	c.APIKeys = &APIKeyService{client: hc}
 	c.Exports = &ExportService{client: hc}
 	c.EReporting = &EReportingService{client: hc}
+	c.Reporting = &ReportingService{client: hc}
+	c.Mfa = &MfaService{client: hc}
 	c.Jobs = &JobService{client: hc}
 	c.Sandbox = &SandboxService{client: hc}
 
