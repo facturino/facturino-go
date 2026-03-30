@@ -178,6 +178,16 @@ func (s *QuoteService) GetPDF(id string) (*DocumentResponse, error) {
 	return &resp, nil
 }
 
+// GetSignatureProof retrieves the signature proof for an accepted quote.
+func (s *QuoteService) GetSignatureProof(id string) (*DocumentResponse, error) {
+	var resp DocumentResponse
+	err := s.client.get(fmt.Sprintf("/quotes/%s/signature-proof", id), nil, &resp)
+	if err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
 // QuoteIterator iterates over quotes.
 type QuoteIterator struct {
 	iter *Iterator[*Quote]

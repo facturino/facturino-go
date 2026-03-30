@@ -120,7 +120,7 @@ func (s *ProductService) List(params *ListParams) *ProductIterator {
 // ImportCSV imports products from base64-encoded CSV content.
 func (s *ProductService) ImportCSV(content string) (*ImportResult, error) {
 	var result ImportResult
-	body := map[string]string{"content": content}
+	body := map[string]string{"csv": content}
 	err := s.client.post("/products/import", body, &result, nil)
 	if err != nil {
 		return nil, err
@@ -131,7 +131,7 @@ func (s *ProductService) ImportCSV(content string) (*ImportResult, error) {
 // ExportCSV triggers a CSV export.
 func (s *ProductService) ExportCSV() (*ExportResult, error) {
 	var result ExportResult
-	err := s.client.post("/products/export", nil, &result, nil)
+	err := s.client.get("/products/export", nil, &result)
 	if err != nil {
 		return nil, err
 	}

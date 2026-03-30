@@ -24,8 +24,9 @@ type Member struct {
 
 // MemberInviteParams are the parameters for inviting a member.
 type MemberInviteParams struct {
-	Email string `json:"email"`
-	Role  string `json:"role"`
+	CompanyID string `json:"-"`
+	Email     string `json:"email"`
+	Role      string `json:"role"`
 
 	IdempotencyKey string `json:"-"`
 }
@@ -40,16 +41,17 @@ type MemberService struct {
 	client *httpClient
 }
 
-// List returns a paginated iterator over members.
-func (s *MemberService) List(params *ListParams) *MemberIterator {
-	iter := newIterator[*Member](s.client, "/members", params, decodeMember)
+// List returns a paginated iterator over members for a company.
+func (s *MemberService) List(companyID string, params *ListParams) *MemberIterator {
+	path := fmt.Sprintf("/companies/%s/members", companyID)
+	iter := newIterator[*Member](s.client, path, params, decodeMember)
 	return &MemberIterator{iter: iter}
 }
 
 // Get retrieves a member by ID.
-func (s *MemberService) Get(id string) (*Member, error) {
+func (s *MemberService) Get(companyID, id string) (*Member, error) {
 	var m Member
-	err := s.client.get(fmt.Sprintf("/members/%s", id), nil, &m)
+	err := s.client.get(fmt.Sprintf("/companies/%s/members/%s", companyID, id), nil, &m)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +65,8 @@ func (s *MemberService) Invite(params *MemberInviteParams) (*Member, error) {
 	if params.IdempotencyKey != "" {
 		opts.idempotencyKey = params.IdempotencyKey
 	}
-	err := s.client.post("/members", params, &m, opts)
+	path := fmt.Sprintf("/companies/%s/members", params.CompanyID)
+	err := s.client.post(path, params, &m, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -71,9 +74,9 @@ func (s *MemberService) Invite(params *MemberInviteParams) (*Member, error) {
 }
 
 // UpdateRole updates a member's role.
-func (s *MemberService) UpdateRole(id string, params *MemberUpdateRoleParams) (*Member, error) {
+func (s *MemberService) UpdateRole(companyID, id string, params *MemberUpdateRoleParams) (*Member, error) {
 	var m Member
-	err := s.client.patch(fmt.Sprintf("/members/%s", id), params, &m)
+	err := s.client.patch(fmt.Sprintf("/companies/%s/members/%s", companyID, id), params, &m)
 	if err != nil {
 		return nil, err
 	}
@@ -81,8 +84,8 @@ func (s *MemberService) UpdateRole(id string, params *MemberUpdateRoleParams) (*
 }
 
 // Revoke revokes a member's access.
-func (s *MemberService) Revoke(id string) error {
-	return s.client.del(fmt.Sprintf("/members/%s", id))
+func (s *MemberService) Revoke(companyID, id string) error {
+	return s.client.del(fmt.Sprintf("/companies/%s/members/%s", companyID, id))
 }
 
 // MemberIterator iterates over members.

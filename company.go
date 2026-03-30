@@ -1,6 +1,9 @@
 package facturino
 
-import "fmt"
+import (
+	"fmt"
+	"net/url"
+)
 
 // Company is a seller/tenant company.
 type Company struct {
@@ -43,8 +46,7 @@ type Company struct {
 	CGVUpdatedAt string `json:"cgvUpdatedAt,omitempty"`
 
 	StripeConnectAccountID string `json:"stripeConnectAccountId,omitempty"`
-	PAID                   string `json:"paId,omitempty"`
-	PAConnectedAt          string `json:"paConnectedAt,omitempty"`
+	Einvoicing *EinvoicingConfig `json:"einvoicing,omitempty"`
 
 	MonthlyInvoiceCount    int `json:"monthlyInvoiceCount,omitempty"`
 	MonthlyQuoteCount      int `json:"monthlyQuoteCount,omitempty"`
@@ -144,9 +146,43 @@ type CGVResponse struct {
 	Deleted   bool   `json:"deleted,omitempty"`
 }
 
+// StripeConnectParams are the parameters for connecting a Stripe account.
+type StripeConnectParams struct {
+	ReturnURL  string `json:"return_url,omitempty"`
+	RefreshURL string `json:"refresh_url,omitempty"`
+}
+
+// StripeConnectResponse is returned by Stripe connect operations.
+type StripeConnectResponse struct {
+	Object    string `json:"object"`
+	URL       string `json:"url,omitempty"`
+	Connected bool   `json:"connected,omitempty"`
+	AccountID string `json:"account_id,omitempty"`
+}
+
+// StripeDashboardResponse is returned by the Stripe dashboard endpoint.
+type StripeDashboardResponse struct {
+	Object string `json:"object"`
+	URL    string `json:"url"`
+}
+
 // CompanyService operates on companies.
 type CompanyService struct {
 	client *httpClient
+}
+
+// List returns a paginated list of companies.
+func (s *CompanyService) List(params *ListParams) (*ListResponse, error) {
+	var resp ListResponse
+	var vals url.Values
+	if params != nil {
+		vals = params.toValues()
+	}
+	err := s.client.get("/companies", vals, &resp)
+	if err != nil {
+		return nil, err
+	}
+	return &resp, nil
 }
 
 // Get retrieves a company by ID.
@@ -193,4 +229,85 @@ func (s *CompanyService) GetCGV(id string) (*CGVResponse, error) {
 // DeleteCGV deletes the CGV PDF.
 func (s *CompanyService) DeleteCGV(id string) error {
 	return s.client.del(fmt.Sprintf("/companies/%s/cgv", id))
+}
+
+// EinvoicingConfig holds the BYOPA PA connection configuration.
+type EinvoicingConfig struct {
+	Enabled      bool   `json:"enabled"`
+	Provider     string `json:"provider,omitempty"`
+	ConnectedAt  string `json:"connectedAt,omitempty"`
+	HealthStatus string `json:"healthStatus,omitempty"`
+}
+
+// PAConnectionParams are the parameters for connecting a PA.
+type PAConnectionParams struct {
+	Provider     string `json:"provider"`
+	ClientID     string `json:"clientId,omitempty"`
+	ClientSecret string `json:"clientSecret,omitempty"`
+	APIKey       string `json:"apiKey,omitempty"`
+	CustomBaseURL string `json:"customBaseUrl,omitempty"`
+}
+
+// PAConnectionResult is returned by ConnectPA.
+type PAConnectionResult struct {
+	Provider    string `json:"provider"`
+	Status      string `json:"status"`
+	ConnectedAt string `json:"connectedAt"`
+}
+
+// PATestResult is returned by TestPAConnection.
+type PATestResult struct {
+	Healthy   bool   `json:"healthy"`
+	LatencyMs int    `json:"latencyMs"`
+	Details   string `json:"details"`
+}
+
+// ConnectPA connects a PA to the company. The client provides their own PA account credentials.
+func (s *CompanyService) ConnectPA(id string, params *PAConnectionParams) (*PAConnectionResult, error) {
+	var r PAConnectionResult
+	err := s.client.post(fmt.Sprintf("/companies/%s/pa-connection", id), params, &r, nil)
+	if err != nil {
+		return nil, err
+	}
+	return &r, nil
+}
+
+// DisconnectPA disconnects the PA from a company.
+func (s *CompanyService) DisconnectPA(id string) error {
+	return s.client.del(fmt.Sprintf("/companies/%s/pa-connection", id))
+}
+
+// TestPAConnection tests the PA connection (health check + credential validation).
+func (s *CompanyService) TestPAConnection(id string) (*PATestResult, error) {
+	var r PATestResult
+	err := s.client.post(fmt.Sprintf("/companies/%s/pa-connection/test", id), nil, &r, nil)
+	if err != nil {
+		return nil, err
+	}
+	return &r, nil
+}
+
+// ConnectStripe initiates Stripe Connect onboarding for online payments (Pro+ plan).
+func (s *CompanyService) ConnectStripe(params *StripeConnectParams) (*StripeConnectResponse, error) {
+	var resp StripeConnectResponse
+	err := s.client.post("/companies/stripe-connect", params, &resp, nil)
+	if err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
+// GetStripeDashboard returns the Stripe dashboard URL for the connected account.
+func (s *CompanyService) GetStripeDashboard() (*StripeDashboardResponse, error) {
+	var resp StripeDashboardResponse
+	err := s.client.get("/companies/stripe-dashboard", nil, &resp)
+	if err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
+// DisconnectStripe disconnects the Stripe account.
+func (s *CompanyService) DisconnectStripe() error {
+	return s.client.del("/companies/stripe-connect")
 }

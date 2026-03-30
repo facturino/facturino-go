@@ -22,6 +22,7 @@ type Client struct {
 	Members           *MemberService
 	APIKeys           *APIKeyService
 	Exports           *ExportService
+	Archives          *ArchiveService
 	EReporting        *EReportingService
 	Reporting         *ReportingService
 	Mfa               *MfaService
@@ -88,6 +89,7 @@ func New(apiKey string, opts ...ClientOption) *Client {
 	c.Members = &MemberService{client: hc}
 	c.APIKeys = &APIKeyService{client: hc}
 	c.Exports = &ExportService{client: hc}
+	c.Archives = &ArchiveService{client: hc}
 	c.EReporting = &EReportingService{client: hc}
 	c.Reporting = &ReportingService{client: hc}
 	c.Mfa = &MfaService{client: hc}

@@ -482,6 +482,26 @@ func (s *InvoiceService) CreatePaymentToken(id string) (*PaymentTokenResponse, e
 	return &resp, nil
 }
 
+// CreateIncoming creates an incoming invoice (received from a supplier).
+func (s *InvoiceService) CreateIncoming(params *InvoiceParams) (*Invoice, error) {
+	var inv Invoice
+	opts := &requestOption{}
+	if params.IdempotencyKey != "" {
+		opts.idempotencyKey = params.IdempotencyKey
+	}
+	err := s.client.post("/invoices/incoming", params, &inv, opts)
+	if err != nil {
+		return nil, err
+	}
+	return &inv, nil
+}
+
+// ListIncoming returns a paginated iterator over incoming invoices.
+func (s *InvoiceService) ListIncoming(params *ListParams) *InvoiceIterator {
+	iter := newIterator[*Invoice](s.client, "/invoices/incoming", params, decodeInvoice)
+	return &InvoiceIterator{iter: iter}
+}
+
 // InvoiceIterator iterates over invoices.
 type InvoiceIterator struct {
 	iter *Iterator[*Invoice]

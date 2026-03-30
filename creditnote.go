@@ -164,6 +164,16 @@ func (s *CreditNoteService) GetPDF(id string) (*DocumentResponse, error) {
 	return &resp, nil
 }
 
+// GetFacturX retrieves a cached Factur-X URL or triggers async generation.
+func (s *CreditNoteService) GetFacturX(id string) (*DocumentResponse, error) {
+	var resp DocumentResponse
+	err := s.client.get(fmt.Sprintf("/credit-notes/%s/facturx", id), nil, &resp)
+	if err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
 // CreditNoteIterator iterates over credit notes.
 type CreditNoteIterator struct {
 	iter *Iterator[*CreditNote]

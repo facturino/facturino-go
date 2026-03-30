@@ -80,6 +80,16 @@ func (s *WebhookEndpointService) Delete(id string) error {
 	return s.client.del(fmt.Sprintf("/webhook-endpoints/%s", id))
 }
 
+// Test sends a test event to a webhook endpoint.
+func (s *WebhookEndpointService) Test(id string) (*WebhookEndpointResource, error) {
+	var we WebhookEndpointResource
+	err := s.client.post(fmt.Sprintf("/webhook-endpoints/%s/test", id), nil, &we, nil)
+	if err != nil {
+		return nil, err
+	}
+	return &we, nil
+}
+
 // List returns a paginated iterator over webhook endpoints.
 func (s *WebhookEndpointService) List(params *ListParams) *WebhookEndpointIterator {
 	iter := newIterator[*WebhookEndpointResource](s.client, "/webhook-endpoints", params, decodeWebhookEndpoint)

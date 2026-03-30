@@ -50,10 +50,10 @@ func (s *SandboxService) SimulateStatus(invoiceID string, params *SimulateStatus
 	return &resp, nil
 }
 
-// CreateFixtures loads sandbox test fixtures.
+// CreateFixtures loads sandbox test fixtures by resetting and reloading data.
 func (s *SandboxService) CreateFixtures() (*SandboxResetResponse, error) {
 	var resp SandboxResetResponse
-	err := s.client.post("/sandbox/fixtures", nil, &resp, nil)
+	err := s.client.post("/sandbox/reset", nil, &resp, nil)
 	if err != nil {
 		return nil, err
 	}

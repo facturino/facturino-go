@@ -135,20 +135,20 @@ func (s *RecurringInvoiceService) List(params *ListParams) *RecurringInvoiceIter
 	return &RecurringInvoiceIterator{iter: iter}
 }
 
-// Activate activates a recurring invoice schedule.
-func (s *RecurringInvoiceService) Activate(id string) (*RecurringInvoice, error) {
+// Resume resumes a paused recurring invoice schedule.
+func (s *RecurringInvoiceService) Resume(id string) (*RecurringInvoice, error) {
 	var ri RecurringInvoice
-	err := s.client.post(fmt.Sprintf("/recurring-invoices/%s/activate", id), nil, &ri, nil)
+	err := s.client.post(fmt.Sprintf("/recurring-invoices/%s/resume", id), nil, &ri, nil)
 	if err != nil {
 		return nil, err
 	}
 	return &ri, nil
 }
 
-// Deactivate deactivates a recurring invoice schedule.
-func (s *RecurringInvoiceService) Deactivate(id string) (*RecurringInvoice, error) {
+// Pause pauses an active recurring invoice schedule.
+func (s *RecurringInvoiceService) Pause(id string) (*RecurringInvoice, error) {
 	var ri RecurringInvoice
-	err := s.client.post(fmt.Sprintf("/recurring-invoices/%s/deactivate", id), nil, &ri, nil)
+	err := s.client.post(fmt.Sprintf("/recurring-invoices/%s/pause", id), nil, &ri, nil)
 	if err != nil {
 		return nil, err
 	}

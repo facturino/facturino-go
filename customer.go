@@ -3,7 +3,6 @@ package facturino
 import (
 	"encoding/json"
 	"fmt"
-	"net/url"
 )
 
 // Customer is a buyer.
@@ -155,15 +154,8 @@ func (s *CustomerService) List(params *ListParams) *CustomerIterator {
 
 // Lookup finds a customer by SIRET or VAT.
 func (s *CustomerService) Lookup(params *CustomerLookupParams) (*Customer, error) {
-	v := url.Values{}
-	if params.SIRET != "" {
-		v.Set("siret", params.SIRET)
-	}
-	if params.VATNumber != "" {
-		v.Set("vatNumber", params.VATNumber)
-	}
 	var cus Customer
-	err := s.client.get("/customers/lookup", v, &cus)
+	err := s.client.post("/customers/lookup", params, &cus, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -173,7 +165,7 @@ func (s *CustomerService) Lookup(params *CustomerLookupParams) (*Customer, error
 // ImportCSV imports customers from base64-encoded CSV content.
 func (s *CustomerService) ImportCSV(content string) (*ImportResult, error) {
 	var result ImportResult
-	body := map[string]string{"content": content}
+	body := map[string]string{"csv": content}
 	err := s.client.post("/customers/import", body, &result, nil)
 	if err != nil {
 		return nil, err
@@ -184,7 +176,7 @@ func (s *CustomerService) ImportCSV(content string) (*ImportResult, error) {
 // ExportCSV triggers a CSV export.
 func (s *CustomerService) ExportCSV() (*ExportResult, error) {
 	var result ExportResult
-	err := s.client.post("/customers/export", nil, &result, nil)
+	err := s.client.get("/customers/export", nil, &result)
 	if err != nil {
 		return nil, err
 	}

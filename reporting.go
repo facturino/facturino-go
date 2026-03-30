@@ -77,7 +77,7 @@ type ReportingService struct {
 	client *httpClient
 }
 
-// VAT returns a VAT report for the given period. Requires Essential+ plan.
+// VAT returns a VAT report for the given period. Requires Essential, Pro or Cabinet plan.
 func (s *ReportingService) VAT(params *VATReportParams) (*VATReport, error) {
 	v := url.Values{}
 	if params != nil {
@@ -96,7 +96,7 @@ func (s *ReportingService) VAT(params *VATReportParams) (*VATReport, error) {
 	return &resp, nil
 }
 
-// Revenue returns a revenue report for the given period. Requires Essential+ plan.
+// Revenue returns a revenue report for the given period. Requires Essential, Pro or Cabinet plan.
 func (s *ReportingService) Revenue(params *RevenueReportParams) (*RevenueReport, error) {
 	v := url.Values{}
 	if params != nil {

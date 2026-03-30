@@ -66,9 +66,15 @@ func (s *APIKeyService) List(params *ListParams) *APIKeyIterator {
 }
 
 // Revoke permanently revokes an API key.
-func (s *APIKeyService) Revoke(id string) (*APIKey, error) {
+func (s *APIKeyService) Revoke(id string) error {
+	return s.client.del(fmt.Sprintf("/api-keys/%s", id))
+}
+
+// Roll generates a new secret for an API key while keeping the same ID.
+// The new full key is only visible in the response.
+func (s *APIKeyService) Roll(id string) (*APIKey, error) {
 	var key APIKey
-	err := s.client.post(fmt.Sprintf("/api-keys/%s/revoke", id), nil, &key, nil)
+	err := s.client.post(fmt.Sprintf("/api-keys/%s/roll", id), nil, &key, nil)
 	if err != nil {
 		return nil, err
 	}
