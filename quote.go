@@ -138,6 +138,36 @@ func (s *QuoteService) Send(id string) (*Quote, error) {
 	return &q, nil
 }
 
+// QuoteEmailParams contains optional overrides for the email send.
+type QuoteEmailParams struct {
+	RecipientEmail string `json:"recipientEmail,omitempty"`
+	CustomMessage  string `json:"customMessage,omitempty"`
+	CustomSubject  string `json:"customSubject,omitempty"`
+}
+
+// QuoteEmailResponse is returned by Email. When the PDF is still being
+// generated server-side the response carries `Status = "pending"` and a
+// `JobID` to poll; otherwise `Status = "sent"`.
+type QuoteEmailResponse struct {
+	Status    string `json:"status"`
+	QuoteID   string `json:"quoteId,omitempty"`
+	Recipient string `json:"recipient,omitempty"`
+	SentAt    string `json:"sentAt,omitempty"`
+	JobID     string `json:"jobId,omitempty"`
+	PollURL   string `json:"pollUrl,omitempty"`
+	Reason    string `json:"reason,omitempty"`
+}
+
+// Email sends the quote to its customer by email with the PDF attached.
+func (s *QuoteService) Email(id string, params *QuoteEmailParams) (*QuoteEmailResponse, error) {
+	var resp QuoteEmailResponse
+	err := s.client.post(fmt.Sprintf("/quotes/%s/email", id), params, &resp, nil)
+	if err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
 // Accept marks the quote as accepted by the buyer.
 func (s *QuoteService) Accept(id string) (*Quote, error) {
 	var q Quote

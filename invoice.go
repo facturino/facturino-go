@@ -351,17 +351,61 @@ func (s *InvoiceService) Send(id string) (*Invoice, error) {
 	return &inv, nil
 }
 
-// Cancel attempts to cancel an invoice.
-// Note: Under French e-invoicing regulations, this returns an error.
-// Use CreditNotes.Create() to issue a corrective document instead.
+// InvoiceEmailParams contains optional overrides for the email send.
+// All fields are optional; with a nil params the email is dispatched
+// to the customer's saved address with the default subject line.
+type InvoiceEmailParams struct {
+	RecipientEmail string `json:"recipientEmail,omitempty"`
+	CustomMessage  string `json:"customMessage,omitempty"`
+	IncludeXML     bool   `json:"includeXml,omitempty"`
+	CustomSubject  string `json:"customSubject,omitempty"`
+}
+
+// InvoiceEmailResponse is returned by Email. When the PDF is still being
+// generated server-side the response carries Status="pending" and a
+// JobID to poll; otherwise Status="sent" along with the recipient and
+// the dispatch timestamp.
+type InvoiceEmailResponse struct {
+	Status    string `json:"status"`
+	InvoiceID string `json:"invoiceId,omitempty"`
+	Recipient string `json:"recipient,omitempty"`
+	SentAt    string `json:"sentAt,omitempty"`
+	JobID     string `json:"jobId,omitempty"`
+	PollURL   string `json:"pollUrl,omitempty"`
+	Reason    string `json:"reason,omitempty"`
+}
+
+// Email sends a finalized invoice to its customer by email with the
+// PDF (and optionally the Factur-X XML CII) attached.
+func (s *InvoiceService) Email(id string, params *InvoiceEmailParams) (*InvoiceEmailResponse, error) {
+	var resp InvoiceEmailResponse
+	err := s.client.post(fmt.Sprintf("/invoices/%s/email", id), params, &resp, nil)
+	if err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
+// Cancel cancels a draft invoice (status `draft` only). Finalized
+// invoices are immutable under French law (CGI art. 289) — to refund
+// or correct a finalized invoice, issue a credit note via
+// CreditNotes.Create() instead.
 func (s *InvoiceService) Cancel(id string) error {
 	return s.client.post(fmt.Sprintf("/invoices/%s/cancel", id), nil, nil, nil)
 }
 
-// Remind sends a payment reminder for the invoice.
-func (s *InvoiceService) Remind(id string) error {
+// InvoiceRemindParams optionally tunes the reminder. Level can be
+// 1 (friendly), 2 (firm) or 3 (formal). Omitting both fields sends
+// a level-1 reminder with the default body.
+type InvoiceRemindParams struct {
+	Level   int    `json:"level,omitempty"`
+	Message string `json:"message,omitempty"`
+}
+
+// Remind sends a payment reminder email for an overdue invoice.
+func (s *InvoiceService) Remind(id string, params *InvoiceRemindParams) error {
 	var resp map[string]interface{}
-	return s.client.post(fmt.Sprintf("/invoices/%s/remind", id), nil, &resp, nil)
+	return s.client.post(fmt.Sprintf("/invoices/%s/remind", id), params, &resp, nil)
 }
 
 // Clone creates a new draft invoice by cloning an existing one.

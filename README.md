@@ -102,7 +102,9 @@ _ = client.Invoices.Delete("inv_xxx")
 
 inv, _ = client.Invoices.Finalize("inv_xxx")
 inv, _ = client.Invoices.Send("inv_xxx")
-_ = client.Invoices.Remind("inv_xxx")
+_ = client.Invoices.Remind("inv_xxx", nil) // or &facturino.InvoiceRemindParams{Level: 2}
+sent, _ := client.Invoices.Email("inv_xxx", nil)
+_ = sent.Status // "sent" or "pending" (job still rendering the PDF)
 clone, _ := client.Invoices.Clone("inv_xxx")
 
 pdf, _ := client.Invoices.GetPDF("inv_xxx")

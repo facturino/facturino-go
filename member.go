@@ -88,6 +88,17 @@ func (s *MemberService) Revoke(companyID, id string) error {
 	return s.client.del(fmt.Sprintf("/companies/%s/members/%s", companyID, id))
 }
 
+// ResendInvitation re-sends the invitation email to a pending member
+// (owner/admin only).
+func (s *MemberService) ResendInvitation(companyID, id string) (*Member, error) {
+	var m Member
+	err := s.client.post(fmt.Sprintf("/companies/%s/members/%s/resend-invitation", companyID, id), nil, &m, nil)
+	if err != nil {
+		return nil, err
+	}
+	return &m, nil
+}
+
 // MemberIterator iterates over members.
 type MemberIterator struct {
 	iter *Iterator[*Member]

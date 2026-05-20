@@ -8,6 +8,7 @@ import "net/http"
 
 // Client is the entry point for the Facturino API.
 type Client struct {
+	Account           *AccountService
 	Invoices          *InvoiceService
 	Payments          *PaymentService
 	Customers         *CustomerService
@@ -95,6 +96,7 @@ func New(apiKey string, opts ...ClientOption) *Client {
 	c.Mfa = &MfaService{client: hc}
 	c.Jobs = &JobService{client: hc}
 	c.Sandbox = &SandboxService{client: hc}
+	c.Account = &AccountService{client: hc}
 
 	return c
 }

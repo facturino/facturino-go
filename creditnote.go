@@ -154,6 +154,38 @@ func (s *CreditNoteService) Send(id string) (*CreditNote, error) {
 	return &cn, nil
 }
 
+// CreditNoteEmailParams contains optional overrides for the email send.
+type CreditNoteEmailParams struct {
+	RecipientEmail string `json:"recipientEmail,omitempty"`
+	CustomMessage  string `json:"customMessage,omitempty"`
+	IncludeXML     bool   `json:"includeXml,omitempty"`
+	CustomSubject  string `json:"customSubject,omitempty"`
+}
+
+// CreditNoteEmailResponse is returned by Email. When the PDF is still being
+// generated server-side the response carries `Status = "pending"` and a
+// `JobID` to poll; otherwise `Status = "sent"`.
+type CreditNoteEmailResponse struct {
+	Status       string `json:"status"`
+	CreditNoteID string `json:"creditNoteId,omitempty"`
+	Recipient    string `json:"recipient,omitempty"`
+	SentAt       string `json:"sentAt,omitempty"`
+	JobID        string `json:"jobId,omitempty"`
+	PollURL      string `json:"pollUrl,omitempty"`
+	Reason       string `json:"reason,omitempty"`
+}
+
+// Email sends the credit note to its customer by email with the PDF
+// (and optionally the Factur-X XML) attached.
+func (s *CreditNoteService) Email(id string, params *CreditNoteEmailParams) (*CreditNoteEmailResponse, error) {
+	var resp CreditNoteEmailResponse
+	err := s.client.post(fmt.Sprintf("/credit-notes/%s/email", id), params, &resp, nil)
+	if err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
 // GetPDF retrieves a cached PDF URL or triggers async generation.
 func (s *CreditNoteService) GetPDF(id string) (*DocumentResponse, error) {
 	var resp DocumentResponse
