@@ -30,6 +30,15 @@ type Client struct {
 	Jobs              *JobService
 	Sandbox           *SandboxService
 
+	// Added to reach 100% API coverage with the REST surface
+	Billing       *BillingService
+	Cabinets      *CabinetService
+	Notifications *NotificationService
+	Reference     *ReferenceService
+	Settings      *SettingsService
+	Usage         *UsageService
+	Validate      *ValidateService
+
 	client *httpClient
 }
 
@@ -97,6 +106,13 @@ func New(apiKey string, opts ...ClientOption) *Client {
 	c.Jobs = &JobService{client: hc}
 	c.Sandbox = &SandboxService{client: hc}
 	c.Account = &AccountService{client: hc}
+	c.Billing = &BillingService{client: hc}
+	c.Cabinets = &CabinetService{client: hc}
+	c.Notifications = &NotificationService{client: hc}
+	c.Reference = &ReferenceService{client: hc}
+	c.Settings = &SettingsService{client: hc}
+	c.Usage = &UsageService{client: hc}
+	c.Validate = &ValidateService{client: hc}
 
 	return c
 }

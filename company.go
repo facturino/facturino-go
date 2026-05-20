@@ -108,6 +108,44 @@ type AccountingConfig struct {
 	CustomMappings      map[string]string `json:"customMappings"`
 }
 
+// CompanyCreateParams is the body for POST /v1/companies.
+//
+// Subject to the per-plan company quota (free / essential: 1, pro: 3,
+// cabinet_*: 50+); exceeding the quota returns a 402 plan_limit_error.
+type CompanyCreateParams struct {
+	Name          string       `json:"name"`
+	SIRET         string       `json:"siret"`
+	Address       *Address     `json:"address"`
+	VATNumber     string       `json:"vatNumber,omitempty"`
+	LegalForm     interface{}  `json:"legalForm,omitempty"`
+	NAF           interface{}  `json:"naf,omitempty"`
+	TVAIntracom   string       `json:"tvaIntracom,omitempty"`
+	RCS           string       `json:"rcs,omitempty"`
+	CapitalSocial string       `json:"capitalSocial,omitempty"`
+	VATRegime     string       `json:"vatRegime,omitempty"`
+	Email         string       `json:"email,omitempty"`
+	Phone         string       `json:"phone,omitempty"`
+	Website       string       `json:"website,omitempty"`
+	BankDetails   *BankDetails `json:"bankDetails,omitempty"`
+}
+
+// CompanyInvoicingSettingsUpdate is the body for PATCH
+// /v1/companies/:id/invoicing-settings.
+type CompanyInvoicingSettingsUpdate struct {
+	VATRegime       string           `json:"vatRegime,omitempty"`
+	InvoiceSettings *InvoiceSettings `json:"invoiceSettings,omitempty"`
+	QuoteSettings   *QuoteSettings   `json:"quoteSettings,omitempty"`
+	CreditNoteSettings *CreditNoteSettings `json:"creditNoteSettings,omitempty"`
+}
+
+// CompanyMilestoneResponse is the acknowledgement returned by
+// POST /v1/companies/:id/milestones.
+type CompanyMilestoneResponse struct {
+	Object    string `json:"object"`
+	Milestone string `json:"milestone"`
+	ReachedAt string `json:"reachedAt"`
+}
+
 // CompanyUpdateParams are the parameters for updating a company.
 type CompanyUpdateParams struct {
 	Name         string   `json:"name,omitempty"`
@@ -185,6 +223,18 @@ func (s *CompanyService) List(params *ListParams) (*ListResponse, error) {
 	return &resp, nil
 }
 
+// Create creates a new company under the authenticated user.
+//
+// Subject to the per-plan company quota (free / essential: 1, pro: 3,
+// cabinet_*: 50+); exceeding the quota returns a 402 plan_limit_error.
+func (s *CompanyService) Create(params *CompanyCreateParams) (*Company, error) {
+	var c Company
+	if err := s.client.post("/companies", params, &c, nil); err != nil {
+		return nil, err
+	}
+	return &c, nil
+}
+
 // Get retrieves a company by ID.
 func (s *CompanyService) Get(id string) (*Company, error) {
 	var c Company
@@ -221,6 +271,30 @@ func (s *CompanyService) GetCGV(id string) (*CGVResponse, error) {
 	var resp CGVResponse
 	err := s.client.get(fmt.Sprintf("/companies/%s/cgv", id), nil, &resp)
 	if err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
+// UpdateInvoicingSettings updates the invoicing settings (numbering
+// format, default payment terms, default VAT rate, footer mentions…)
+// and the VAT regime for the company.
+func (s *CompanyService) UpdateInvoicingSettings(id string, params *CompanyInvoicingSettingsUpdate) (*Company, error) {
+	var c Company
+	if err := s.client.patch(fmt.Sprintf("/companies/%s/invoicing-settings", id), params, &c); err != nil {
+		return nil, err
+	}
+	return &c, nil
+}
+
+// AddMilestone marks an onboarding milestone as reached (for example
+// "first_invoice_sent", "pa_connected", "bank_added"). Used by the
+// dashboard to compute the onboarding progress and surface remaining
+// steps.
+func (s *CompanyService) AddMilestone(id, milestone string) (*CompanyMilestoneResponse, error) {
+	var resp CompanyMilestoneResponse
+	body := map[string]string{"milestone": milestone}
+	if err := s.client.post(fmt.Sprintf("/companies/%s/milestones", id), body, &resp, nil); err != nil {
 		return nil, err
 	}
 	return &resp, nil

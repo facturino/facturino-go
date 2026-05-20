@@ -526,6 +526,28 @@ func (s *InvoiceService) CreatePaymentToken(id string) (*PaymentTokenResponse, e
 	return &resp, nil
 }
 
+// InvoicePortalLinkResponse carries the signed client-portal URL and
+// the token embedded in it.
+type InvoicePortalLinkResponse struct {
+	URL       string `json:"url"`
+	Token     string `json:"token"`
+	ExpiresAt string `json:"expires_at"`
+}
+
+// CreatePortalLink generates a signed client-portal link for a
+// finalized invoice. The URL points to a public, branded portal where
+// the customer can view the invoice, download the PDF and trigger the
+// payment flow. The embedded token grants read-only access to a single
+// invoice and expires after the configured lifetime. Returns
+// invalid_status_transition if the invoice is still in draft.
+func (s *InvoiceService) CreatePortalLink(id string) (*InvoicePortalLinkResponse, error) {
+	var resp InvoicePortalLinkResponse
+	if err := s.client.post(fmt.Sprintf("/invoices/%s/portal-link", id), nil, &resp, nil); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
 // CreateIncoming creates an incoming invoice (received from a supplier).
 func (s *InvoiceService) CreateIncoming(params *InvoiceParams) (*Invoice, error) {
 	var inv Invoice
