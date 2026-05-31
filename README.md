@@ -43,7 +43,9 @@ func main() {
         Items: []*facturino.ItemParams{
             {
                 Description: "Consulting - Mars 2026",
-                Quantity:    1,
+                Quantity:    "1",   // decimal string
+                Unit:        "unit",
+                VATCode:     "S",
                 UnitPrice:   10000, // 100.00 EUR (centimes)
                 VATRate:     2000,  // 20.00% (centipercent)
             },

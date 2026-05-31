@@ -20,18 +20,17 @@ type BillingSubscription struct {
 }
 
 // BillingSubscriptionUpdateParams is the body for
-// PATCH /v1/billing/subscription. Set CancelAtPeriodEnd to schedule a
-// cancellation at the end of the current cycle.
+// PATCH /v1/billing/subscription. Set Annual to switch to annual billing.
+// Cancellation at the end of the period is handled through the Stripe
+// Customer Portal, not this endpoint.
 type BillingSubscriptionUpdateParams struct {
-	Plan              string `json:"plan,omitempty"`
-	Cycle             string `json:"cycle,omitempty"`
-	CancelAtPeriodEnd *bool  `json:"cancelAtPeriodEnd,omitempty"`
+	PlanID string `json:"planId,omitempty"`
+	Annual *bool  `json:"annual,omitempty"`
 }
 
 // BillingCheckoutParams is the body for POST /v1/billing/checkout.
 type BillingCheckoutParams struct {
-	Plan       string `json:"plan"`
-	Cycle      string `json:"cycle,omitempty"`
+	PlanID     string `json:"planId"`
 	SuccessURL string `json:"successUrl"`
 	CancelURL  string `json:"cancelUrl"`
 }
@@ -45,6 +44,12 @@ type BillingCheckoutResponse struct {
 // BillingPortalParams is the body for POST /v1/billing/portal.
 type BillingPortalParams struct {
 	ReturnURL string `json:"returnUrl"`
+}
+
+// BillingPauseParams is the body for POST /v1/billing/pause. Months is
+// required and must be between 1 and 3.
+type BillingPauseParams struct {
+	Months int `json:"months"`
 }
 
 // BillingPortalResponse carries the Stripe Customer-Portal URL.
@@ -96,8 +101,9 @@ func (s *BillingService) RetrieveSubscription() (*BillingSubscription, error) {
 	return &out, nil
 }
 
-// UpdateSubscription changes plan / cycle or schedules a cancellation
-// at the end of the period.
+// UpdateSubscription changes the plan and optionally switches to annual
+// billing. To schedule a cancellation at the end of the period, use the
+// Stripe Customer Portal (see Portal).
 func (s *BillingService) UpdateSubscription(params *BillingSubscriptionUpdateParams) (*BillingSubscription, error) {
 	var out BillingSubscription
 	if err := s.client.patch("/billing/subscription", params, &out); err != nil {
@@ -126,10 +132,11 @@ func (s *BillingService) Portal(params *BillingPortalParams) (*BillingPortalResp
 	return &out, nil
 }
 
-// Pause pauses the active subscription (Pro+ plans).
-func (s *BillingService) Pause() (*BillingSubscription, error) {
+// Pause pauses the active subscription for the given number of months
+// (1..3, Pro+ plans).
+func (s *BillingService) Pause(params *BillingPauseParams) (*BillingSubscription, error) {
 	var out BillingSubscription
-	if err := s.client.post("/billing/pause", nil, &out, nil); err != nil {
+	if err := s.client.post("/billing/pause", params, &out, nil); err != nil {
 		return nil, err
 	}
 	return &out, nil

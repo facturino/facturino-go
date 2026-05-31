@@ -28,8 +28,9 @@ type CabinetBranding struct {
 
 // CabinetCreateParams is the body for POST /v1/cabinets.
 type CabinetCreateParams struct {
-	Name string `json:"name"`
-	Plan string `json:"plan"`
+	Name  string `json:"name"`
+	Siret string `json:"siret"`
+	Plan  string `json:"plan"`
 }
 
 // CabinetBrandingUpdate is the body for PATCH /v1/cabinets/:id/branding.

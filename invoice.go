@@ -170,29 +170,49 @@ type LifecycleEntry struct {
 	Details   string `json:"details,omitempty"`
 }
 
-// ItemParams defines a line item. UnitPrice in centimes, VATRate/DiscountPercent in centipercent.
+// ItemParams defines a line item. Quantity is a decimal string (e.g. "2.5").
+// UnitPrice in centimes, VATRate/DiscountPercent in centipercent.
 type ItemParams struct {
 	Description     string `json:"description"`
-	Quantity        int    `json:"quantity"`
-	Unit            string `json:"unit,omitempty"`
+	Quantity        string `json:"quantity"`
+	Unit            string `json:"unit"`
 	UnitPrice       int    `json:"unitPrice"`
 	VATRate         int    `json:"vatRate"`
-	VATCode         string `json:"vatCode,omitempty"`
+	VATCode         string `json:"vatCode"`
 	DiscountPercent int    `json:"discountPercent,omitempty"`
 	Product         string `json:"product,omitempty"`
 }
 
+// BuyerParams identifies the buyer (B2B recipient) on an invoice.
+// CompanyName and Address are required (CIUS-FR BT-44/BG-8).
+type BuyerParams struct {
+	CompanyName     string   `json:"companyName"`
+	Siret           string   `json:"siret,omitempty"`
+	VATNumber       string   `json:"vatNumber,omitempty"`
+	Address         *Address `json:"address"`
+	DeliveryAddress *Address `json:"deliveryAddress,omitempty"`
+}
+
 // InvoiceParams are the parameters for creating a draft invoice.
 type InvoiceParams struct {
-	Customer string        `json:"customerId"`
-	Type     string        `json:"type,omitempty"`
-	Items    []*ItemParams `json:"lines"`
-	Dates    *InvoiceDatesParams  `json:"dates,omitempty"`
-	Payment  *PaymentTermsParams  `json:"payment,omitempty"`
-	Notes    string        `json:"notes,omitempty"`
-	Metadata map[string]interface{} `json:"metadata,omitempty"`
+	Customer            string                   `json:"customerId"`
+	Type                string                   `json:"type,omitempty"`
+	Buyer               *BuyerParams             `json:"buyer"`
+	Items               []*ItemParams            `json:"lines"`
+	Dates               *InvoiceDatesParams      `json:"dates"`
+	Payment             *PaymentTermsParams      `json:"payment"`
+	Einvoicing          *InvoiceEinvoicingParams `json:"einvoicing,omitempty"`
+	PurchaseOrderNumber string                   `json:"purchaseOrderNumber,omitempty"`
+	Notes               string                   `json:"notes,omitempty"`
+	Metadata            map[string]interface{}   `json:"metadata,omitempty"`
 
 	IdempotencyKey string `json:"-"`
+}
+
+// InvoiceEinvoicingParams overrides the e-invoicing format/profile at creation.
+type InvoiceEinvoicingParams struct {
+	Format  string `json:"format,omitempty"`
+	Profile string `json:"profile,omitempty"`
 }
 
 // InvoiceDatesParams are date overrides for invoice creation.
@@ -204,15 +224,16 @@ type InvoiceDatesParams struct {
 }
 
 // PaymentTermsParams are payment terms for an invoice.
+// LatePaymentRate, CollectionFee and EarlyPaymentDiscount are decimal strings.
 type PaymentTermsParams struct {
-	Terms                string `json:"terms,omitempty"`
-	TermsDays            int    `json:"termsDays,omitempty"`
-	Method               string `json:"method,omitempty"`
+	Terms                string `json:"terms"`
+	TermsDays            int    `json:"termsDays"`
+	Method               string `json:"method"`
 	IBAN                 string `json:"iban,omitempty"`
 	BIC                  string `json:"bic,omitempty"`
-	EarlyPaymentDiscount int    `json:"earlyPaymentDiscount,omitempty"`
-	LatePaymentRate      int    `json:"latePaymentRate,omitempty"`
-	CollectionFee        int    `json:"collectionFee,omitempty"`
+	EarlyPaymentDiscount string `json:"earlyPaymentDiscount,omitempty"`
+	LatePaymentRate      string `json:"latePaymentRate"`
+	CollectionFee        string `json:"collectionFee"`
 }
 
 // InvoiceUpdateParams are the parameters for updating a draft.

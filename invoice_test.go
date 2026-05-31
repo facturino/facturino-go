@@ -36,7 +36,7 @@ func TestInvoiceCreate(t *testing.T) {
 	inv, err := client.Invoices.Create(&InvoiceParams{
 		Customer: "cus_xyz",
 		Items: []*ItemParams{
-			{Description: "Consulting", Quantity: 1, UnitPrice: 10000, VATRate: 2000},
+			{Description: "Consulting", Quantity: "1", UnitPrice: 10000, VATRate: 2000},
 		},
 	})
 	if err != nil {

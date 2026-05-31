@@ -2,6 +2,7 @@ package facturino
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -29,23 +30,37 @@ func TestBillingRetrieveSubscription(t *testing.T) {
 }
 
 func TestBillingUpdateSubscriptionSendsCamelCase(t *testing.T) {
+	var body []byte
 	client, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "PATCH" || r.URL.Path != "/v1/billing/subscription" {
 			t.Errorf("unexpected %s %s", r.Method, r.URL.Path)
 		}
-		// We don't read the body here — the JSON struct tag `cancelAtPeriodEnd`
-		// guarantees the wire format if encoding/json is used (it is).
+		body, _ = io.ReadAll(r.Body)
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, `{"object":"subscription","plan":"pro","cancelAtPeriodEnd":true}`)
+		fmt.Fprint(w, `{"object":"subscription","plan":"pro","cycle":"annual","cancelAtPeriodEnd":true}`)
 	})
 
-	cancel := true
-	sub, err := client.Billing.UpdateSubscription(&BillingSubscriptionUpdateParams{CancelAtPeriodEnd: &cancel})
+	annual := true
+	sub, err := client.Billing.UpdateSubscription(&BillingSubscriptionUpdateParams{PlanID: "pro", Annual: &annual})
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Only planId + annual go on the wire; no cycle / cancelAtPeriodEnd.
+	if !strings.Contains(string(body), `"planId":"pro"`) {
+		t.Errorf("body %q missing planId", body)
+	}
+	if !strings.Contains(string(body), `"annual":true`) {
+		t.Errorf("body %q missing annual", body)
+	}
+	if strings.Contains(string(body), "cycle") || strings.Contains(string(body), "cancelAtPeriodEnd") {
+		t.Errorf("body %q must not contain cycle/cancelAtPeriodEnd", body)
+	}
+	// Response fields stay readable.
+	if sub.Plan != "pro" {
+		t.Errorf("Plan = %q, want pro", sub.Plan)
+	}
 	if !sub.CancelAtPeriodEnd {
-		t.Errorf("CancelAtPeriodEnd = false, want true")
+		t.Errorf("CancelAtPeriodEnd = false, want true (response field)")
 	}
 }
 
@@ -61,7 +76,7 @@ func TestBillingPauseAndResume(t *testing.T) {
 		}
 	})
 
-	if sub, err := client.Billing.Pause(); err != nil || sub.Status != "paused" {
+	if sub, err := client.Billing.Pause(&BillingPauseParams{Months: 1}); err != nil || sub.Status != "paused" {
 		t.Errorf("Pause failed: %v / %v", err, sub)
 	}
 	if sub, err := client.Billing.Resume(); err != nil || sub.Status != "active" {
@@ -98,7 +113,7 @@ func TestCabinetCreateAndDashboard(t *testing.T) {
 		}
 	})
 
-	cab, err := client.Cabinets.Create(&CabinetCreateParams{Name: "Cabinet", Plan: "cabinet_50"})
+	cab, err := client.Cabinets.Create(&CabinetCreateParams{Name: "Cabinet", Siret: "44306184100047", Plan: "cabinet_50"})
 	if err != nil {
 		t.Fatal(err)
 	}

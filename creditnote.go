@@ -65,20 +65,21 @@ type CreditNoteArchive struct {
 
 // CreditNoteParams are the parameters for creating a credit note.
 type CreditNoteParams struct {
-	Customer         string        `json:"customerId"`
-	RelatedInvoiceID string        `json:"relatedInvoiceId"`
-	CreditNoteType   string        `json:"creditNoteType"`
-	ReasonCode       string        `json:"reasonCode"`
-	Reason           string        `json:"reason,omitempty"`
-	Items            []*ItemParams `json:"lines"`
-	Notes            string        `json:"notes,omitempty"`
+	Customer         string           `json:"customerId"`
+	RelatedInvoiceID string           `json:"relatedInvoiceId"`
+	CreditNoteType   string           `json:"creditNoteType"`
+	ReasonCode       string           `json:"reasonCode"`
+	Reason           string           `json:"reason,omitempty"`
+	Items            []*ItemParams    `json:"items"`
+	Dates            *CreditNoteDates `json:"dates"`
+	Notes            string           `json:"notes,omitempty"`
 
 	IdempotencyKey string `json:"-"`
 }
 
 // CreditNoteUpdateParams are the parameters for updating a draft credit note.
 type CreditNoteUpdateParams struct {
-	Items      []*ItemParams `json:"lines,omitempty"`
+	Items      []*ItemParams `json:"items,omitempty"`
 	ReasonCode string        `json:"reasonCode,omitempty"`
 	Reason     string        `json:"reason,omitempty"`
 	Notes      string        `json:"notes,omitempty"`

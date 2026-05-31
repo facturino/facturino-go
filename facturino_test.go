@@ -144,7 +144,7 @@ func TestIdempotencyKeyHeader(t *testing.T) {
 
 	_, err := client.Invoices.Create(&InvoiceParams{
 		Customer:       "cus_123",
-		Items:          []*ItemParams{{Description: "Test", Quantity: 1, UnitPrice: 10000, VATRate: 2000}},
+		Items:          []*ItemParams{{Description: "Test", Quantity: "1", UnitPrice: 10000, VATRate: 2000}},
 		IdempotencyKey: "idem_test_123",
 	})
 	if err != nil {
@@ -503,7 +503,7 @@ func TestRequestBodySerialization(t *testing.T) {
 	_, err := client.Invoices.Create(&InvoiceParams{
 		Customer: "cus_abc",
 		Items: []*ItemParams{
-			{Description: "Service", Quantity: 2, UnitPrice: 5000, VATRate: 2000},
+			{Description: "Service", Quantity: "2", UnitPrice: 5000, VATRate: 2000},
 		},
 		Notes: "test note",
 	})
