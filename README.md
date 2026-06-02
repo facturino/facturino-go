@@ -99,6 +99,9 @@ item := &facturino.ItemParams{
 ```go
 inv, _ := client.Invoices.Create(&facturino.InvoiceParams{...})
 inv, _ = client.Invoices.Get("inv_xxx")
+// Inline related resources: expand "customer", "items.product" and/or
+// "credit_notes" (also yields Expanded.NetBalance).
+inv, _ = client.Invoices.Get("inv_xxx", &facturino.InvoiceGetParams{Expand: []string{"credit_notes"}})
 inv, _ = client.Invoices.Update("inv_xxx", &facturino.InvoiceUpdateParams{...})
 _ = client.Invoices.Delete("inv_xxx")
 
@@ -158,6 +161,14 @@ prod, _ := client.Products.Create(&facturino.ProductParams{
     VATRate:   2000,
     Unit:      "heure",
 })
+
+// Filter the catalog by name prefix, category and/or active flag.
+active := true
+iter := client.Products.List(&facturino.ProductListParams{
+    Q:        "cons",
+    Category: "services",
+    Active:   &active,
+})
 ```
 
 ### Quotes
@@ -169,6 +180,7 @@ q, _ := client.Quotes.Create(&facturino.QuoteParams{
 })
 q, _ = client.Quotes.Send(q.ID)
 q, _ = client.Quotes.Accept(q.ID)
+dup, _ := client.Quotes.Clone(q.ID)  // Duplicates the quote into a new draft
 inv, _ := client.Quotes.Convert(q.ID) // Creates invoice from accepted quote
 ```
 
@@ -242,9 +254,12 @@ sim, _ := client.Sandbox.SimulateStatus("inv_xxx", &facturino.SimulateStatusPara
 All list endpoints return iterators with automatic pagination.
 
 ```go
-iter := client.Invoices.List(&facturino.ListParams{
-    Limit:  10,
-    Status: "paid",
+iter := client.Invoices.List(&facturino.InvoiceListParams{
+    ListParams: facturino.ListParams{
+        Limit:  10,
+        Status: "paid",
+    },
+    ConvertedFrom: "quo_xxx", // optional: only invoices issued from this quote
 })
 for iter.Next() {
     inv := iter.Invoice()

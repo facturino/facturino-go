@@ -188,6 +188,16 @@ func (s *QuoteService) Refuse(id string) (*Quote, error) {
 	return &q, nil
 }
 
+// Clone creates a new draft quote by duplicating an existing one.
+func (s *QuoteService) Clone(id string) (*Quote, error) {
+	var q Quote
+	err := s.client.post(fmt.Sprintf("/quotes/%s/clone", id), nil, &q, nil)
+	if err != nil {
+		return nil, err
+	}
+	return &q, nil
+}
+
 // Convert creates a draft invoice from an accepted quote.
 func (s *QuoteService) Convert(id string) (*Invoice, error) {
 	var inv Invoice

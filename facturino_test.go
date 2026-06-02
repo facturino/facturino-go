@@ -319,7 +319,7 @@ func TestPaginationIterator(t *testing.T) {
 		}
 	})
 
-	iter := client.Invoices.List(&ListParams{Limit: 2})
+	iter := client.Invoices.List(&InvoiceListParams{ListParams: ListParams{Limit: 2}})
 	var ids []string
 	for iter.Next() {
 		ids = append(ids, iter.Invoice().ID)

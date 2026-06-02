@@ -83,9 +83,14 @@ type QuoteSettings struct {
 }
 
 // CreditNoteSettings holds numbering defaults for credit notes.
+//
+// NumberingMode controls how credit notes are numbered: "separate"
+// (default) gives credit notes their own number series, while "unified"
+// makes them share the invoice number series.
 type CreditNoteSettings struct {
-	Prefix     string `json:"prefix"`
-	NextNumber int    `json:"nextNumber"`
+	Prefix        string `json:"prefix"`
+	NextNumber    int    `json:"nextNumber"`
+	NumberingMode string `json:"numberingMode,omitempty"`
 }
 
 // ReminderConfig configures automatic payment reminders (Pro plan).
@@ -329,11 +334,19 @@ type PAConnectionResult struct {
 	ConnectedAt string `json:"connectedAt"`
 }
 
-// PATestResult is returned by TestPAConnection.
+// PATestResult is returned by TestPAConnection. Healthy reflects whether the PA
+// is reachable with valid credentials. ErrorCode is set only when Healthy is
+// false: "pa_credentials_invalid" (fix credentials), "pa_unreachable"
+// (PA/network outage), "pa_not_supported" (the PA exposes no directory lookup —
+// a capability gap, not a misconfiguration), or "pa_error".
 type PATestResult struct {
+	Object    string `json:"object"`
 	Healthy   bool   `json:"healthy"`
 	LatencyMs int    `json:"latencyMs"`
 	Details   string `json:"details"`
+	Provider  string `json:"provider"`
+	TestedAt  string `json:"testedAt"`
+	ErrorCode string `json:"errorCode,omitempty"`
 }
 
 // ConnectPA connects a PA to the company. The client provides their own PA account credentials.

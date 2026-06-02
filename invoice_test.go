@@ -77,6 +77,61 @@ func TestInvoiceGet(t *testing.T) {
 	}
 }
 
+func TestInvoiceGetExpandCreditNotes(t *testing.T) {
+	client, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/invoices/inv_123" {
+			t.Errorf("Path = %q, want /v1/invoices/inv_123", r.URL.Path)
+		}
+		if got := r.URL.Query().Get("expand"); got != "credit_notes" {
+			t.Errorf("expand = %q, want %q", got, "credit_notes")
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"id":"inv_123","object":"invoice","status":"paid","expanded":{"credit_notes":[{"id":"crn_1","object":"credit_note","status":"finalized"}],"net_balance":"80.00"}}`)
+	})
+
+	inv, err := client.Invoices.Get("inv_123", &InvoiceGetParams{Expand: []string{"credit_notes"}})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if inv.Expanded == nil {
+		t.Fatal("expected Expanded to be set")
+	}
+	if len(inv.Expanded.CreditNotes) != 1 {
+		t.Fatalf("got %d credit notes, want 1", len(inv.Expanded.CreditNotes))
+	}
+	if inv.Expanded.CreditNotes[0].ID != "crn_1" {
+		t.Errorf("CreditNotes[0].ID = %q, want %q", inv.Expanded.CreditNotes[0].ID, "crn_1")
+	}
+	if inv.Expanded.NetBalance != "80.00" {
+		t.Errorf("NetBalance = %q, want %q", inv.Expanded.NetBalance, "80.00")
+	}
+}
+
+func TestInvoiceListConvertedFrom(t *testing.T) {
+	client, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/invoices" {
+			t.Errorf("Path = %q, want /v1/invoices", r.URL.Path)
+		}
+		if got := r.URL.Query().Get("convertedFrom"); got != "quo_123" {
+			t.Errorf("convertedFrom = %q, want %q", got, "quo_123")
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"object":"list","url":"/v1/invoices","data":[{"id":"inv_1","object":"invoice","status":"draft"}],"has_more":false,"next_cursor":null}`)
+	})
+
+	iter := client.Invoices.List(&InvoiceListParams{ConvertedFrom: "quo_123"})
+	var ids []string
+	for iter.Next() {
+		ids = append(ids, iter.Invoice().ID)
+	}
+	if err := iter.Err(); err != nil {
+		t.Fatalf("iterator error: %v", err)
+	}
+	if len(ids) != 1 || ids[0] != "inv_1" {
+		t.Errorf("ids = %v, want [inv_1]", ids)
+	}
+}
+
 func TestInvoiceUpdate(t *testing.T) {
 	client, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "PATCH" {
@@ -369,6 +424,39 @@ func TestProductCreateAndGet(t *testing.T) {
 	}
 	if prod.Name != "Widget" {
 		t.Errorf("Name = %q, want %q", prod.Name, "Widget")
+	}
+}
+
+func TestProductListFilters(t *testing.T) {
+	client, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/products" {
+			t.Errorf("Path = %q, want /v1/products", r.URL.Path)
+		}
+		q := r.URL.Query()
+		if got := q.Get("q"); got != "wid" {
+			t.Errorf("q = %q, want %q", got, "wid")
+		}
+		if got := q.Get("category"); got != "hardware" {
+			t.Errorf("category = %q, want %q", got, "hardware")
+		}
+		if got := q.Get("active"); got != "true" {
+			t.Errorf("active = %q, want %q", got, "true")
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"object":"list","url":"/v1/products","data":[{"id":"prod_1","object":"product","name":"Widget","active":true}],"has_more":false,"next_cursor":null}`)
+	})
+
+	active := true
+	iter := client.Products.List(&ProductListParams{Q: "wid", Category: "hardware", Active: &active})
+	var ids []string
+	for iter.Next() {
+		ids = append(ids, iter.Product().ID)
+	}
+	if err := iter.Err(); err != nil {
+		t.Fatalf("iterator error: %v", err)
+	}
+	if len(ids) != 1 || ids[0] != "prod_1" {
+		t.Errorf("ids = %v, want [prod_1]", ids)
 	}
 }
 

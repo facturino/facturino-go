@@ -3,6 +3,8 @@ package facturino
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
+	"strconv"
 )
 
 // Product is a catalog product or service.
@@ -111,9 +113,41 @@ func (s *ProductService) Delete(id string) error {
 	return s.client.del(fmt.Sprintf("/products/%s", id))
 }
 
+// ProductListParams adds product-specific filters to ListParams.
+type ProductListParams struct {
+	ListParams
+
+	// Q filters products by name prefix.
+	Q string
+	// Category filters products by category.
+	Category string
+	// Active filters products by their active flag. Leave nil to return
+	// both active and inactive products.
+	Active *bool
+}
+
 // List returns a paginated iterator over products.
-func (s *ProductService) List(params *ListParams) *ProductIterator {
-	iter := newIterator[*Product](s.client, "/products", params, decodeProduct)
+func (s *ProductService) List(params *ProductListParams) *ProductIterator {
+	var lp *ListParams
+	if params != nil {
+		lp = &params.ListParams
+	}
+	iter := newIterator[*Product](s.client, "/products", lp, decodeProduct)
+	if params != nil {
+		extra := url.Values{}
+		if params.Q != "" {
+			extra.Set("q", params.Q)
+		}
+		if params.Category != "" {
+			extra.Set("category", params.Category)
+		}
+		if params.Active != nil {
+			extra.Set("active", strconv.FormatBool(*params.Active))
+		}
+		if len(extra) > 0 {
+			iter.extraParams = extra
+		}
+	}
 	return &ProductIterator{iter: iter}
 }
 

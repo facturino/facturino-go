@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"strings"
 )
 
 // Invoice is a Facturino invoice.
@@ -34,8 +35,29 @@ type Invoice struct {
 
 	Metadata map[string]interface{} `json:"metadata"`
 
+	// Expanded holds related resources inlined when requested via the
+	// expand parameter on Get (see InvoiceGetParams.Expand). It is nil
+	// unless expansion was requested.
+	Expanded *InvoiceExpanded `json:"expanded,omitempty"`
+
 	Created string `json:"created"`
 	Updated string `json:"updated"`
+}
+
+// InvoiceExpanded holds related resources inlined on an invoice when
+// requested through the expand parameter.
+type InvoiceExpanded struct {
+	// Customer is populated when expand includes "customer".
+	Customer *Customer `json:"customer,omitempty"`
+
+	// CreditNotes lists the credit notes issued against the invoice. It
+	// is populated when expand includes "credit_notes".
+	CreditNotes []*CreditNote `json:"credit_notes,omitempty"`
+
+	// NetBalance is the invoice total less the sum of its credit notes,
+	// as a decimal string. It is populated when expand includes
+	// "credit_notes".
+	NetBalance string `json:"net_balance,omitempty"`
 }
 
 // InvoiceDates holds invoice dates.
@@ -321,10 +343,24 @@ func (s *InvoiceService) Create(params *InvoiceParams) (*Invoice, error) {
 	return &inv, nil
 }
 
-// Get retrieves an invoice by ID.
-func (s *InvoiceService) Get(id string) (*Invoice, error) {
+// InvoiceGetParams tunes a single-invoice retrieval. Expand inlines
+// related resources into Invoice.Expanded; supported values are
+// "customer", "items.product" and "credit_notes". Requesting
+// "credit_notes" also populates Expanded.NetBalance.
+type InvoiceGetParams struct {
+	Expand []string
+}
+
+// Get retrieves an invoice by ID. Pass an optional InvoiceGetParams to
+// expand related resources (for example expand "credit_notes" to inline
+// the invoice's credit notes and net balance under Invoice.Expanded).
+func (s *InvoiceService) Get(id string, params ...*InvoiceGetParams) (*Invoice, error) {
+	var vals url.Values
+	if len(params) > 0 && params[0] != nil && len(params[0].Expand) > 0 {
+		vals = url.Values{"expand": {strings.Join(params[0].Expand, ",")}}
+	}
 	var inv Invoice
-	err := s.client.get(fmt.Sprintf("/invoices/%s", id), nil, &inv)
+	err := s.client.get(fmt.Sprintf("/invoices/%s", id), vals, &inv)
 	if err != nil {
 		return nil, err
 	}
@@ -346,9 +382,25 @@ func (s *InvoiceService) Delete(id string) error {
 	return s.client.del(fmt.Sprintf("/invoices/%s", id))
 }
 
+// InvoiceListParams adds invoice-specific filters to ListParams.
+type InvoiceListParams struct {
+	ListParams
+
+	// ConvertedFrom filters invoices to those converted from the given
+	// quote (a "quo_"-prefixed identifier).
+	ConvertedFrom string
+}
+
 // List returns a paginated iterator over invoices.
-func (s *InvoiceService) List(params *ListParams) *InvoiceIterator {
-	iter := newIterator[*Invoice](s.client, "/invoices", params, decodeInvoice)
+func (s *InvoiceService) List(params *InvoiceListParams) *InvoiceIterator {
+	var lp *ListParams
+	if params != nil {
+		lp = &params.ListParams
+	}
+	iter := newIterator[*Invoice](s.client, "/invoices", lp, decodeInvoice)
+	if params != nil && params.ConvertedFrom != "" {
+		iter.extraParams = url.Values{"convertedFrom": {params.ConvertedFrom}}
+	}
 	return &InvoiceIterator{iter: iter}
 }
 
