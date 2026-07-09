@@ -4,7 +4,10 @@
 // VAT rates are integers in centipercent (2000 = 20.00%).
 package facturino
 
-import "net/http"
+import (
+	"context"
+	"net/http"
+)
 
 // Client is the entry point for the Facturino API.
 type Client struct {
@@ -20,24 +23,16 @@ type Client struct {
 	RecurringInvoices *RecurringInvoiceService
 	ReceivedInvoices  *ReceivedInvoiceService
 	Companies         *CompanyService
-	Members           *MemberService
-	APIKeys           *APIKeyService
 	Exports           *ExportService
 	Archives          *ArchiveService
 	EReporting        *EReportingService
 	Reporting         *ReportingService
-	Mfa               *MfaService
 	Jobs              *JobService
 	Sandbox           *SandboxService
-
-	// Added to reach 100% API coverage with the REST surface
-	Billing       *BillingService
-	Cabinets      *CabinetService
-	Notifications *NotificationService
-	Reference     *ReferenceService
-	Settings      *SettingsService
-	Usage         *UsageService
-	Validate      *ValidateService
+	Billing           *BillingService
+	Reference         *ReferenceService
+	Usage             *UsageService
+	Validate          *ValidateService
 
 	client *httpClient
 }
@@ -83,7 +78,24 @@ func New(apiKey string, opts ...ClientOption) *Client {
 	}
 
 	hc := newHTTPClient(apiKey, cfg.baseURL, cfg.httpClient, cfg.maxRetries)
+	return buildClient(hc)
+}
 
+// WithContext returns a shallow copy of the client whose requests use ctx as
+// their default context, so a deadline or cancellation applies across a group
+// of calls:
+//
+//	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+//	defer cancel()
+//	inv, err := client.WithContext(ctx).Invoices.Get(id)
+//
+// The original client is unchanged; both share the same HTTP transport.
+func (c *Client) WithContext(ctx context.Context) *Client {
+	return buildClient(c.client.withContext(ctx))
+}
+
+// buildClient wires every service to the given httpClient.
+func buildClient(hc *httpClient) *Client {
 	c := &Client{client: hc}
 	c.Invoices = &InvoiceService{client: hc}
 	c.Payments = &PaymentService{client: hc}
@@ -96,21 +108,15 @@ func New(apiKey string, opts ...ClientOption) *Client {
 	c.RecurringInvoices = &RecurringInvoiceService{client: hc}
 	c.ReceivedInvoices = &ReceivedInvoiceService{client: hc}
 	c.Companies = &CompanyService{client: hc}
-	c.Members = &MemberService{client: hc}
-	c.APIKeys = &APIKeyService{client: hc}
 	c.Exports = &ExportService{client: hc}
 	c.Archives = &ArchiveService{client: hc}
 	c.EReporting = &EReportingService{client: hc}
 	c.Reporting = &ReportingService{client: hc}
-	c.Mfa = &MfaService{client: hc}
 	c.Jobs = &JobService{client: hc}
 	c.Sandbox = &SandboxService{client: hc}
 	c.Account = &AccountService{client: hc}
 	c.Billing = &BillingService{client: hc}
-	c.Cabinets = &CabinetService{client: hc}
-	c.Notifications = &NotificationService{client: hc}
 	c.Reference = &ReferenceService{client: hc}
-	c.Settings = &SettingsService{client: hc}
 	c.Usage = &UsageService{client: hc}
 	c.Validate = &ValidateService{client: hc}
 

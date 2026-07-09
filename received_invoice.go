@@ -15,15 +15,18 @@ type ReceivedInvoice struct {
 	SourceFormat string `json:"sourceFormat"`
 	Status       string `json:"status"`
 
+	// SenderSiret is the 14-digit SIRET (empty when the seller exposes only a SIREN).
 	SenderSiret string `json:"senderSiret"`
+	// SenderSiren is the 9-digit SIREN — the CIUS-FR French seller identifier (BT-30).
+	SenderSiren string `json:"senderSiren"`
 	SenderName  string `json:"senderName"`
 
 	Number   string `json:"number"`
 	IssuedAt string `json:"issuedAt"`
 	DueAt    string `json:"dueAt"`
-	TotalHT  string `json:"totalHT"`
-	TotalTVA string `json:"totalTVA"`
-	TotalTTC string `json:"totalTTC"`
+	TotalHT  int    `json:"totalHT"` // integer centimes
+	TotalTVA int    `json:"totalTVA"`
+	TotalTTC int    `json:"totalTTC"`
 
 	XMLPath string `json:"xmlPath"`
 	PDFPath string `json:"pdfPath,omitempty"`
@@ -34,11 +37,11 @@ type ReceivedInvoice struct {
 
 	Einvoicing *ReceivedInvoiceEinvoicing `json:"einvoicing,omitempty"`
 
-	Reconciled           bool   `json:"reconciled"`
-	ReconciledPaymentID  string `json:"reconciledPaymentId,omitempty"`
+	Reconciled          bool   `json:"reconciled"`
+	ReconciledPaymentID string `json:"reconciledPaymentId,omitempty"`
 
-	Lifecycle []*LifecycleEntry          `json:"lifecycle"`
-	Metadata  map[string]interface{}     `json:"metadata"`
+	Lifecycle []*LifecycleEntry      `json:"lifecycle"`
+	Metadata  map[string]interface{} `json:"metadata"`
 
 	Created string `json:"created"`
 	Updated string `json:"updated"`

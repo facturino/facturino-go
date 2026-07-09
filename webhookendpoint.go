@@ -105,7 +105,9 @@ type WebhookEndpointIterator struct {
 func (it *WebhookEndpointIterator) Next() bool { return it.iter.Next() }
 
 // WebhookEndpoint returns the most recently fetched webhook endpoint.
-func (it *WebhookEndpointIterator) WebhookEndpoint() *WebhookEndpointResource { return it.iter.Current() }
+func (it *WebhookEndpointIterator) WebhookEndpoint() *WebhookEndpointResource {
+	return it.iter.Current()
+}
 
 // Err returns any error encountered during iteration.
 func (it *WebhookEndpointIterator) Err() error { return it.iter.Err() }

@@ -16,9 +16,9 @@ type EReporting struct {
 
 	Period string `json:"period"`
 
-	TotalHT  string `json:"totalHT"`
-	TotalTVA string `json:"totalTVA"`
-	TotalTTC string `json:"totalTTC"`
+	TotalHT  int `json:"totalHT"` // integer centimes
+	TotalTVA int `json:"totalTVA"`
+	TotalTTC int `json:"totalTTC"`
 
 	Lines []*EReportingLine `json:"lines"`
 
@@ -32,9 +32,9 @@ type EReporting struct {
 // EReportingLine is a line in an e-reporting declaration.
 type EReportingLine struct {
 	Category  string `json:"category"`
-	Amount    string `json:"amount"`
-	VATRate   string `json:"vatRate"`
-	VATAmount string `json:"vatAmount"`
+	Amount    int    `json:"amount"`  // integer centimes
+	VATRate   int    `json:"vatRate"` // centièmes de pourcent
+	VATAmount int    `json:"vatAmount"`
 }
 
 // EReportingParams are the parameters for creating a declaration. Amounts in centimes.

@@ -9,7 +9,7 @@ import (
 type Payment struct {
 	ID         string `json:"id"`
 	Object     string `json:"object"`
-	Amount     string `json:"amount"`
+	Amount     int    `json:"amount"` // integer centimes
 	Method     string `json:"method"`
 	Reference  string `json:"reference"`
 	PaidAt     string `json:"paidAt"`

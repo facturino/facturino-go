@@ -38,6 +38,22 @@ type NafCodeList struct {
 	HasMore bool      `json:"has_more"`
 }
 
+// LegalFormInput sets a company/customer legal form on create or update.
+// Provide either the 4-digit INSEE Code or the Sigle (e.g. "SAS", "SASU");
+// the API resolves the canonical sub-object. Do not send a Label — the input
+// is strictly validated and unknown keys are rejected.
+type LegalFormInput struct {
+	Code  string `json:"code,omitempty"`
+	Sigle string `json:"sigle,omitempty"`
+}
+
+// NafInput sets a company/customer NAF (APE) activity code on create or update.
+// Provide the Rev. 2 Code (e.g. "62.01Z" or "6201Z"); the API resolves the
+// canonical sub-object. Do not send a Label — unknown keys are rejected.
+type NafInput struct {
+	Code string `json:"code,omitempty"`
+}
+
 // ReferenceListParams carries the standard search / limit filter for
 // the lookup endpoints.
 type ReferenceListParams struct {

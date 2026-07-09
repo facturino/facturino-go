@@ -6,14 +6,14 @@ import "fmt"
 type ErrorType string
 
 const (
-	ErrorTypeInvalidRequest  ErrorType = "invalid_request_error"
-	ErrorTypeAuthentication  ErrorType = "authentication_error"
-	ErrorTypeRateLimit       ErrorType = "rate_limit_error"
-	ErrorTypeAPI             ErrorType = "api_error"
-	ErrorTypeValidation      ErrorType = "validation_error"
-	ErrorTypePlanLimit       ErrorType = "plan_limit_error"
-	ErrorTypeNotFound        ErrorType = "not_found_error"
-	ErrorTypeConflict        ErrorType = "conflict_error"
+	ErrorTypeInvalidRequest ErrorType = "invalid_request_error"
+	ErrorTypeAuthentication ErrorType = "authentication_error"
+	ErrorTypeRateLimit      ErrorType = "rate_limit_error"
+	ErrorTypeAPI            ErrorType = "api_error"
+	ErrorTypeValidation     ErrorType = "validation_error"
+	ErrorTypePlanLimit      ErrorType = "plan_limit_error"
+	ErrorTypeNotFound       ErrorType = "not_found_error"
+	ErrorTypeConflict       ErrorType = "conflict_error"
 )
 
 // Error is a structured API error from Facturino.

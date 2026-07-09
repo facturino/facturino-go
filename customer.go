@@ -11,12 +11,12 @@ type Customer struct {
 	Object   string `json:"object"`
 	Livemode bool   `json:"livemode"`
 
-	Name      string `json:"name"`
-	SIRET     string `json:"siret,omitempty"`
-	SIREN     string `json:"siren,omitempty"`
-	VATNumber string `json:"vatNumber,omitempty"`
-	LegalForm string `json:"legalForm,omitempty"`
-	NAFCode   string `json:"nafCode,omitempty"`
+	Name      string     `json:"name"`
+	SIRET     string     `json:"siret,omitempty"`
+	SIREN     string     `json:"siren,omitempty"`
+	VATNumber string     `json:"vatNumber,omitempty"`
+	LegalForm *LegalForm `json:"legalForm,omitempty"`
+	NAF       *NafCode   `json:"naf,omitempty"`
 
 	Address         *Address `json:"address"`
 	DeliveryAddress *Address `json:"deliveryAddress,omitempty"`
@@ -24,11 +24,11 @@ type Customer struct {
 	Type     string     `json:"type"`
 	Contacts []*Contact `json:"contacts,omitempty"`
 
-	PaymentTerms int    `json:"paymentTerms,omitempty"`
+	PaymentTerms int      `json:"paymentTerms,omitempty"`
 	Tags         []string `json:"tags,omitempty"`
-	Notes        string `json:"notes,omitempty"`
+	Notes        string   `json:"notes,omitempty"`
 
-	Balance  string `json:"balance"`
+	Balance  int    `json:"balance"` // integer centimes
 	Currency string `json:"currency"`
 
 	SIRETVerified bool `json:"siretVerified"`
@@ -46,13 +46,13 @@ type Customer struct {
 
 // CustomerParams are the parameters for creating a customer.
 type CustomerParams struct {
-	Name      string `json:"name"`
-	Type      string `json:"type"`
-	Email     string `json:"email,omitempty"`
-	SIRET     string `json:"siret,omitempty"`
-	VATNumber string `json:"vatNumber,omitempty"`
-	LegalForm string `json:"legalForm,omitempty"`
-	NAFCode   string `json:"nafCode,omitempty"`
+	Name      string          `json:"name"`
+	Type      string          `json:"type"`
+	Email     string          `json:"email,omitempty"`
+	SIRET     string          `json:"siret,omitempty"`
+	VATNumber string          `json:"vatNumber,omitempty"`
+	LegalForm *LegalFormInput `json:"legalForm,omitempty"`
+	NAF       *NafInput       `json:"naf,omitempty"`
 
 	Address         *Address `json:"address,omitempty"`
 	DeliveryAddress *Address `json:"deliveryAddress,omitempty"`
@@ -61,24 +61,22 @@ type CustomerParams struct {
 	PaymentTerms int        `json:"paymentTerms,omitempty"`
 	Tags         []string   `json:"tags,omitempty"`
 	Notes        string     `json:"notes,omitempty"`
-	Currency     string     `json:"currency,omitempty"`
 
-	PAIdentifier         string `json:"paIdentifier,omitempty"`
-	PreferredFormat      string `json:"preferredFormat,omitempty"`
-	ReceivingPAID        string `json:"receivingPaId,omitempty"`
-	RecipientServiceCode string `json:"recipientServiceCode,omitempty"`
+	PAIdentifier    string `json:"paIdentifier,omitempty"`
+	PreferredFormat string `json:"preferredFormat,omitempty"`
+	ReceivingPAID   string `json:"receivingPaId,omitempty"`
 
 	IdempotencyKey string `json:"-"`
 }
 
 // CustomerUpdateParams are the parameters for updating a customer.
 type CustomerUpdateParams struct {
-	Name      string `json:"name,omitempty"`
-	Type      string `json:"type,omitempty"`
-	SIRET     string `json:"siret,omitempty"`
-	VATNumber string `json:"vatNumber,omitempty"`
-	LegalForm string `json:"legalForm,omitempty"`
-	NAFCode   string `json:"nafCode,omitempty"`
+	Name      string          `json:"name,omitempty"`
+	Type      string          `json:"type,omitempty"`
+	SIRET     string          `json:"siret,omitempty"`
+	VATNumber string          `json:"vatNumber,omitempty"`
+	LegalForm *LegalFormInput `json:"legalForm,omitempty"`
+	NAF       *NafInput       `json:"naf,omitempty"`
 
 	Address         *Address `json:"address,omitempty"`
 	DeliveryAddress *Address `json:"deliveryAddress,omitempty"`
@@ -88,18 +86,45 @@ type CustomerUpdateParams struct {
 	Tags         []string   `json:"tags,omitempty"`
 	Notes        string     `json:"notes,omitempty"`
 
-	PAIdentifier         string `json:"paIdentifier,omitempty"`
-	PreferredFormat      string `json:"preferredFormat,omitempty"`
-	ReceivingPAID        string `json:"receivingPaId,omitempty"`
-	RecipientServiceCode string `json:"recipientServiceCode,omitempty"`
+	PAIdentifier    string `json:"paIdentifier,omitempty"`
+	PreferredFormat string `json:"preferredFormat,omitempty"`
+	ReceivingPAID   string `json:"receivingPaId,omitempty"`
 
 	Active *bool `json:"active,omitempty"`
 }
 
-// CustomerLookupParams find a customer by SIRET or VAT number.
+// CustomerLookupParams looks up a company in the INSEE Sirene registry.
+// Provide exactly one of SIRET (exact match) or Query (name search).
 type CustomerLookupParams struct {
-	SIRET     string `json:"siret,omitempty"`
-	VATNumber string `json:"vatNumber,omitempty"`
+	SIRET string `json:"siret,omitempty"`
+	Query string `json:"query,omitempty"`
+}
+
+// SireneCompany holds the registry details resolved from the INSEE Sirene
+// database. It is NOT a stored customer — feed the fields you want into
+// CustomerParams to create one.
+type SireneCompany struct {
+	Name      string     `json:"name"`
+	SIRET     string     `json:"siret"`
+	SIREN     string     `json:"siren"`
+	VATNumber string     `json:"vatNumber"`
+	LegalForm *LegalForm `json:"legalForm"`
+	NAF       *NafCode   `json:"naf"`
+	Address   *Address   `json:"address"`
+	Active    bool       `json:"active"`
+}
+
+// SireneLookupResult is returned by CustomerService.Lookup. For a SIRET lookup,
+// Found reports whether the registry had a match and Data carries the details
+// (nil when not found, with Warning explaining why). For a name Query the API
+// returns object "sirene_search" with Results and Total instead.
+type SireneLookupResult struct {
+	Object  string           `json:"object"`
+	Found   bool             `json:"found"`
+	Data    *SireneCompany   `json:"data,omitempty"`
+	Warning string           `json:"warning,omitempty"`
+	Results []*SireneCompany `json:"results,omitempty"`
+	Total   int              `json:"total,omitempty"`
 }
 
 // CustomerService operates on customers.
@@ -152,17 +177,19 @@ func (s *CustomerService) List(params *ListParams) *CustomerIterator {
 	return &CustomerIterator{iter: iter}
 }
 
-// Lookup finds a customer by SIRET or VAT.
-func (s *CustomerService) Lookup(params *CustomerLookupParams) (*Customer, error) {
-	var cus Customer
-	err := s.client.post("/customers/lookup", params, &cus, nil)
+// Lookup resolves a company from the INSEE Sirene registry by SIRET or name.
+// The result is registry data (not a stored customer): pass the fields you want
+// into Customers.Create to persist a customer.
+func (s *CustomerService) Lookup(params *CustomerLookupParams) (*SireneLookupResult, error) {
+	var result SireneLookupResult
+	err := s.client.post("/customers/lookup", params, &result, nil)
 	if err != nil {
 		return nil, err
 	}
-	return &cus, nil
+	return &result, nil
 }
 
-// ImportCSV imports customers from base64-encoded CSV content.
+// ImportCSV imports customers from raw CSV text (not base64-encoded).
 func (s *CustomerService) ImportCSV(content string) (*ImportResult, error) {
 	var result ImportResult
 	body := map[string]string{"csv": content}
@@ -173,14 +200,10 @@ func (s *CustomerService) ImportCSV(content string) (*ImportResult, error) {
 	return &result, nil
 }
 
-// ExportCSV triggers a CSV export.
-func (s *CustomerService) ExportCSV() (*ExportResult, error) {
-	var result ExportResult
-	err := s.client.get("/customers/export", nil, &result)
-	if err != nil {
-		return nil, err
-	}
-	return &result, nil
+// ExportCSV returns the full customer list as raw CSV (Content-Type text/csv).
+func (s *CustomerService) ExportCSV() (string, error) {
+	data, _, err := s.client.doRaw("GET", "/customers/export", nil, nil)
+	return string(data), err
 }
 
 // ImportResult holds CSV import results.
@@ -189,15 +212,6 @@ type ImportResult struct {
 	Imported int    `json:"imported"`
 	Skipped  int    `json:"skipped"`
 	Errors   int    `json:"errors"`
-}
-
-// ExportResult holds CSV export results.
-type ExportResult struct {
-	Object    string `json:"object"`
-	URL       string `json:"url,omitempty"`
-	ExpiresIn int    `json:"expires_in,omitempty"`
-	JobID     string `json:"id,omitempty"`
-	Status    string `json:"status,omitempty"`
 }
 
 // CustomerIterator iterates over customers.

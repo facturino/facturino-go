@@ -2,14 +2,12 @@ package facturino
 
 import (
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 	"testing"
 )
 
-// Tests for the services added to reach 100% API coverage:
-// Billing, Cabinet, Notification, Reference, Settings, Usage, Validate.
+// Tests for Billing, Reference, Usage and Validate.
 
 func TestBillingRetrieveSubscription(t *testing.T) {
 	client, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) {
@@ -29,61 +27,6 @@ func TestBillingRetrieveSubscription(t *testing.T) {
 	}
 }
 
-func TestBillingUpdateSubscriptionSendsCamelCase(t *testing.T) {
-	var body []byte
-	client, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "PATCH" || r.URL.Path != "/v1/billing/subscription" {
-			t.Errorf("unexpected %s %s", r.Method, r.URL.Path)
-		}
-		body, _ = io.ReadAll(r.Body)
-		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, `{"object":"subscription","plan":"pro","cycle":"annual","cancelAtPeriodEnd":true}`)
-	})
-
-	annual := true
-	sub, err := client.Billing.UpdateSubscription(&BillingSubscriptionUpdateParams{PlanID: "pro", Annual: &annual})
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Only planId + annual go on the wire; no cycle / cancelAtPeriodEnd.
-	if !strings.Contains(string(body), `"planId":"pro"`) {
-		t.Errorf("body %q missing planId", body)
-	}
-	if !strings.Contains(string(body), `"annual":true`) {
-		t.Errorf("body %q missing annual", body)
-	}
-	if strings.Contains(string(body), "cycle") || strings.Contains(string(body), "cancelAtPeriodEnd") {
-		t.Errorf("body %q must not contain cycle/cancelAtPeriodEnd", body)
-	}
-	// Response fields stay readable.
-	if sub.Plan != "pro" {
-		t.Errorf("Plan = %q, want pro", sub.Plan)
-	}
-	if !sub.CancelAtPeriodEnd {
-		t.Errorf("CancelAtPeriodEnd = false, want true (response field)")
-	}
-}
-
-func TestBillingPauseAndResume(t *testing.T) {
-	client, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/v1/billing/pause":
-			fmt.Fprint(w, `{"object":"subscription","status":"paused"}`)
-		case "/v1/billing/resume":
-			fmt.Fprint(w, `{"object":"subscription","status":"active"}`)
-		default:
-			t.Errorf("unexpected path %s", r.URL.Path)
-		}
-	})
-
-	if sub, err := client.Billing.Pause(&BillingPauseParams{Months: 1}); err != nil || sub.Status != "paused" {
-		t.Errorf("Pause failed: %v / %v", err, sub)
-	}
-	if sub, err := client.Billing.Resume(); err != nil || sub.Status != "active" {
-		t.Errorf("Resume failed: %v / %v", err, sub)
-	}
-}
-
 func TestBillingGetInvoicePDF(t *testing.T) {
 	client, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/v1/billing/invoices/in_x/pdf" {
@@ -98,104 +41,6 @@ func TestBillingGetInvoicePDF(t *testing.T) {
 	}
 	if !strings.HasPrefix(pdf.URL, "https://") {
 		t.Errorf("URL = %q, want https://...", pdf.URL)
-	}
-}
-
-func TestCabinetCreateAndDashboard(t *testing.T) {
-	client, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case r.Method == "POST" && r.URL.Path == "/v1/cabinets":
-			fmt.Fprint(w, `{"id":"cab_x","name":"Cabinet","plan":"cabinet_50"}`)
-		case r.Method == "GET" && r.URL.Path == "/v1/cabinets/cab_x/dashboard":
-			fmt.Fprint(w, `{"object":"cabinet_dashboard","totalRevenue":"12345.67","companyCount":12}`)
-		default:
-			t.Errorf("unexpected %s %s", r.Method, r.URL.Path)
-		}
-	})
-
-	cab, err := client.Cabinets.Create(&CabinetCreateParams{Name: "Cabinet", Siret: "44306184100047", Plan: "cabinet_50"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if cab.ID != "cab_x" {
-		t.Errorf("ID = %q, want cab_x", cab.ID)
-	}
-
-	dash, err := client.Cabinets.Dashboard("cab_x", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if dash.TotalRevenue != "12345.67" {
-		t.Errorf("TotalRevenue = %q, want 12345.67", dash.TotalRevenue)
-	}
-}
-
-func TestCabinetInviteMember(t *testing.T) {
-	client, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/v1/cabinets/cab_x/members" {
-			t.Errorf("Path = %q", r.URL.Path)
-		}
-		fmt.Fprint(w, `{"object":"cabinet_member","id":"mem_x","status":"invited"}`)
-	})
-
-	resp, err := client.Cabinets.InviteMember("cab_x", &CabinetMemberInviteParams{
-		Email: "test@example.com",
-		Role:  "accountant",
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if resp.Status != "invited" {
-		t.Errorf("Status = %q, want invited", resp.Status)
-	}
-}
-
-func TestNotificationListAndMarkRead(t *testing.T) {
-	client, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case r.Method == "GET" && r.URL.Path == "/v1/notifications":
-			if r.URL.Query().Get("unread") != "true" {
-				t.Errorf("unread query = %q, want true", r.URL.Query().Get("unread"))
-			}
-			fmt.Fprint(w, `{"object":"list","data":[{"id":"notif_1","read":false}],"has_more":false}`)
-		case r.Method == "PATCH" && r.URL.Path == "/v1/notifications/notif_1":
-			fmt.Fprint(w, `{"object":"notification","id":"notif_1","read":true}`)
-		default:
-			t.Errorf("unexpected %s %s", r.Method, r.URL.Path)
-		}
-	})
-
-	unread := true
-	list, err := client.Notifications.List(&NotificationListParams{Unread: &unread})
-	if err != nil || len(list.Data) != 1 {
-		t.Fatalf("List failed: %v / %v", err, list)
-	}
-
-	n, err := client.Notifications.MarkRead("notif_1")
-	if err != nil || !n.Read {
-		t.Fatalf("MarkRead failed: %v / %v", err, n)
-	}
-}
-
-func TestNotificationPreferencesRoundTrip(t *testing.T) {
-	client, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/v1/notification-preferences" {
-			t.Errorf("Path = %q", r.URL.Path)
-		}
-		fmt.Fprint(w, `{"object":"notification_preferences","preferences":{}}`)
-	})
-
-	if _, err := client.Notifications.RetrievePreferences(); err != nil {
-		t.Fatal(err)
-	}
-
-	trueVal := true
-	if _, err := client.Notifications.UpdatePreferences(&NotificationPreferencesUpdate{
-		Preferences: map[string]NotificationChannelToggles{
-			"invoice_paid": {Email: &trueVal, InApp: &trueVal},
-		},
-	}); err != nil {
-		t.Fatal(err)
 	}
 }
 
@@ -225,42 +70,19 @@ func TestReferenceListLegalFormsAndNaf(t *testing.T) {
 	}
 }
 
-func TestSettingsScopedUnderCompany(t *testing.T) {
-	client, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/v1/companies/comp_x/settings/accounting":
-			fmt.Fprint(w, `{"object":"accounting_settings","vatRegime":"normal"}`)
-		case "/v1/companies/comp_x/settings/reminders":
-			fmt.Fprint(w, `{"object":"reminder_settings","enabled":true,"intervals":[7,15,30]}`)
-		default:
-			t.Errorf("unexpected path %s", r.URL.Path)
-		}
-	})
-
-	acc, err := client.Settings.RetrieveAccounting("comp_x")
-	if err != nil || acc.VATRegime != "normal" {
-		t.Fatalf("RetrieveAccounting failed: %v / %v", err, acc)
-	}
-
-	rem, err := client.Settings.RetrieveReminders("comp_x")
-	if err != nil || !rem.Enabled || len(rem.Intervals) != 3 {
-		t.Fatalf("RetrieveReminders failed: %v / %v", err, rem)
-	}
-}
-
 func TestUsageRetrieve(t *testing.T) {
 	client, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/v1/usage" {
 			t.Errorf("Path = %q", r.URL.Path)
 		}
-		fmt.Fprint(w, `{"object":"usage","plan":"pro","invoicesIssued":{"used":12,"limit":1000}}`)
+		fmt.Fprint(w, `{"object":"usage","plan":"pro","periodStart":"2026-06-01T00:00:00.000Z","counters":{"invoicesMonth":{"used":12,"limit":1000}}}`)
 	})
 
 	u, err := client.Usage.Retrieve()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if u.Plan != "pro" || u.InvoicesIssued.Used != 12 {
+	if u.Plan != "pro" || u.Counters["invoicesMonth"].Used != 12 {
 		t.Errorf("Usage = %+v", u)
 	}
 }
@@ -270,10 +92,16 @@ func TestValidateRun(t *testing.T) {
 		if r.Method != "POST" || r.URL.Path != "/v1/validate" {
 			t.Errorf("unexpected %s %s", r.Method, r.URL.Path)
 		}
-		fmt.Fprint(w, `{"object":"validate","valid":true,"kind":"siret"}`)
+		fmt.Fprint(w, `{"valid":true,"warnings":[],"schemaVersion":"2026-02-01"}`)
 	})
 
-	res, err := client.Validate.Run(&ValidateParams{Kind: "siret", Value: "44306184100047"})
+	res, err := client.Validate.Run(&InvoiceParams{
+		Customer: "cus_123",
+		Buyer:    &BuyerParams{CompanyName: "Acme", Address: &Address{Line1: "1 rue X", PostalCode: "75001", City: "Paris", Country: "FR"}},
+		Items:    []*ItemParams{{Description: "Item", Quantity: "1", UnitPrice: 1000, VATRate: 2000, VATCode: "S"}},
+		Dates:    &InvoiceDatesParams{Issued: "2026-01-15", Due: "2026-02-15"},
+		Payment:  &PaymentTermsParams{Terms: "Net 30", TermsDays: 30, Method: "transfer", LatePaymentRate: "10.00", CollectionFee: "40.00"},
+	})
 	if err != nil {
 		t.Fatal(err)
 	}

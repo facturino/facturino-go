@@ -9,25 +9,36 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
 )
 
 const (
-	defaultBaseURL   = "https://facturino.com/api"
-	defaultTimeout   = 30 * time.Second
-	apiVersion       = "v1"
-	sdkVersion       = "1.0.0"
+	defaultBaseURL    = "https://facturino.com/api"
+	defaultTimeout    = 30 * time.Second
+	apiVersion        = "v1"
+	apiDateVersion    = "2026-03-01"
+	sdkVersion        = "1.0.0"
 	defaultMaxRetries = 3
 )
 
 // httpClient wraps net/http for authenticated requests to the Facturino API.
 type httpClient struct {
-	apiKey     string
-	baseURL    string
-	httpClient *http.Client
-	maxRetries int
+	apiKey      string
+	baseURL     string
+	httpClient  *http.Client
+	maxRetries  int
+	baseContext context.Context
+}
+
+// withContext returns a shallow copy bound to ctx, used as the default context
+// for every request unless a per-request option overrides it.
+func (c *httpClient) withContext(ctx context.Context) *httpClient {
+	clone := *c
+	clone.baseContext = ctx
+	return &clone
 }
 
 func newHTTPClient(apiKey, baseURL string, httpCl *http.Client, maxRetries int) *httpClient {
@@ -59,25 +70,35 @@ type requestOption struct {
 func (c *httpClient) do(method, path string, body interface{}, dest interface{}, opts *requestOption) error {
 	fullURL := c.baseURL + "/" + apiVersion + path
 
-	var bodyReader io.Reader
+	// Marshal the body ONCE (reused on each retry). A typed nil pointer (the
+	// documented "no params" pattern) is a non-nil interface but marshals to
+	// "null", which the backend rejects ("Expected object" → 400) — send an empty
+	// object instead so no-param POSTs (Email, Remind, CreatePaymentLink…) work.
+	var data []byte
 	if body != nil {
-		data, err := json.Marshal(body)
-		if err != nil {
-			return fmt.Errorf("facturino: failed to marshal request body: %w", err)
+		if rv := reflect.ValueOf(body); rv.Kind() == reflect.Ptr && rv.IsNil() {
+			data = []byte("{}")
+		} else {
+			var err error
+			data, err = json.Marshal(body)
+			if err != nil {
+				return fmt.Errorf("facturino: failed to marshal request body: %w", err)
+			}
 		}
-		bodyReader = bytes.NewReader(data)
 	}
 
-	ctx := context.Background()
+	ctx := c.baseContext
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if opts != nil && opts.context != nil {
 		ctx = opts.context
 	}
 
 	var lastErr error
 	for attempt := 0; attempt <= c.maxRetries; attempt++ {
-		// Reset body reader for retries
-		if body != nil {
-			data, _ := json.Marshal(body)
+		var bodyReader io.Reader
+		if data != nil {
 			bodyReader = bytes.NewReader(data)
 		}
 
@@ -90,6 +111,7 @@ func (c *httpClient) do(method, path string, body interface{}, dest interface{},
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Accept", "application/json")
 		req.Header.Set("User-Agent", "facturino-go/"+sdkVersion)
+		req.Header.Set("Facturino-Version", apiDateVersion)
 
 		if opts != nil && opts.idempotencyKey != "" {
 			req.Header.Set("Idempotency-Key", opts.idempotencyKey)
@@ -150,7 +172,10 @@ func (c *httpClient) doRaw(method, path string, body interface{}, opts *requestO
 		bodyReader = bytes.NewReader(data)
 	}
 
-	ctx := context.Background()
+	ctx := c.baseContext
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if opts != nil && opts.context != nil {
 		ctx = opts.context
 	}
@@ -172,6 +197,7 @@ func (c *httpClient) doRaw(method, path string, body interface{}, opts *requestO
 			req.Header.Set("Content-Type", "application/json")
 		}
 		req.Header.Set("User-Agent", "facturino-go/"+sdkVersion)
+		req.Header.Set("Facturino-Version", apiDateVersion)
 
 		resp, err := c.httpClient.Do(req)
 		if err != nil {

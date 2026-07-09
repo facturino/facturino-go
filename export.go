@@ -31,13 +31,12 @@ type ExportStatusResponse struct {
 	DownloadURL string `json:"download_url,omitempty"`
 }
 
-// RGPDExportResponse is returned by RGPD data export.
-type RGPDExportResponse struct {
-	ID        string `json:"id"`
-	Object    string `json:"object"`
-	Type      string `json:"type"`
-	Status    string `json:"status"`
-	CompanyID string `json:"company_id"`
+// InvoiceExportParams are the optional filters for a bulk invoice export.
+// With a zero value, every non-draft invoice is exported.
+type InvoiceExportParams struct {
+	PeriodStart string   `json:"period_start,omitempty"`
+	PeriodEnd   string   `json:"period_end,omitempty"`
+	Statuses    []string `json:"statuses,omitempty"`
 }
 
 // ExportInvoicesResponse is returned by the bulk invoice export endpoint.
@@ -83,20 +82,11 @@ func (s *ExportService) GetExportStatus(jobID string) (*ExportStatusResponse, er
 	return &resp, nil
 }
 
-// ExportInvoices triggers a bulk export of all finalized invoices as ZIP (Factur-X PDF + CII XML).
-func (s *ExportService) ExportInvoices() (*ExportInvoicesResponse, error) {
+// ExportInvoices triggers a bulk export of finalized invoices as ZIP (Factur-X PDF + CII XML).
+// Pass nil to export every non-draft invoice, or filters to restrict by period and/or statuses.
+func (s *ExportService) ExportInvoices(params *InvoiceExportParams) (*ExportInvoicesResponse, error) {
 	var resp ExportInvoicesResponse
-	err := s.client.post("/exports/invoices", nil, &resp, nil)
-	if err != nil {
-		return nil, err
-	}
-	return &resp, nil
-}
-
-// ExportRGPD triggers an async full RGPD data export.
-func (s *ExportService) ExportRGPD() (*RGPDExportResponse, error) {
-	var resp RGPDExportResponse
-	err := s.client.post("/exports/full", nil, &resp, nil)
+	err := s.client.post("/exports/invoices", params, &resp, nil)
 	if err != nil {
 		return nil, err
 	}

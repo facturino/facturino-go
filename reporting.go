@@ -22,12 +22,12 @@ type VATReport struct {
 
 // RevenueReport is a revenue summary for a given period. Amounts in centimes.
 type RevenueReport struct {
-	Object          string               `json:"object"`
-	Period          *ReportPeriod        `json:"period"`
-	Revenue         *RevenueBreakdown    `json:"revenue"`
-	Payments        *PaymentsBreakdown   `json:"payments"`
-	InvoiceCount    int                  `json:"invoice_count"`
-	CreditNoteCount int                  `json:"credit_note_count"`
+	Object          string                `json:"object"`
+	Period          *ReportPeriod         `json:"period"`
+	Revenue         *RevenueBreakdown     `json:"revenue"`
+	Payments        *PaymentsBreakdown    `json:"payments"`
+	InvoiceCount    int                   `json:"invoice_count"`
+	CreditNoteCount int                   `json:"credit_note_count"`
 	Breakdown       []*RevenuePeriodGroup `json:"breakdown,omitempty"`
 }
 

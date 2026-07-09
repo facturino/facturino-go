@@ -40,6 +40,11 @@ func main() {
 
     invoice, err := client.Invoices.Create(&facturino.InvoiceParams{
         Customer: customer.ID,
+        Buyer: &facturino.BuyerParams{
+            CompanyName: "Acme SAS",
+            Siret:       "55208131766522",
+            Address:     &facturino.Address{Line1: "10 rue de la Paix", PostalCode: "75002", City: "Paris", Country: "FR"},
+        },
         Items: []*facturino.ItemParams{
             {
                 Description: "Consulting - Mars 2026",
@@ -49,6 +54,11 @@ func main() {
                 UnitPrice:   10000, // 100.00 EUR (centimes)
                 VATRate:     2000,  // 20.00% (centipercent)
             },
+        },
+        Dates: &facturino.InvoiceDatesParams{Issued: "2026-07-01", Due: "2026-07-31"},
+        Payment: &facturino.PaymentTermsParams{
+            Terms: "Paiement à 30 jours", TermsDays: 30, Method: "transfer",
+            LatePaymentRate: "10.00", CollectionFee: "40.00",
         },
     })
     if err != nil {
@@ -65,6 +75,11 @@ func main() {
     if err != nil {
         log.Fatal(err)
     }
+
+    // One-shot: set AutoFinalize (and optionally AutoSend) on InvoiceParams to
+    // finalize and deliver in a single Create call:
+    //   client.Invoices.Create(&facturino.InvoiceParams{..., AutoFinalize: true,
+    //       AutoSend: &facturino.AutoSendParams{Email: true, PA: true}})
 }
 ```
 
@@ -147,9 +162,14 @@ cus, _ := client.Customers.Create(&facturino.CustomerParams{
     SIRET: "12345678901234",
 })
 
-cus, _ = client.Customers.Lookup(&facturino.CustomerLookupParams{
+// Lookup resolves company details from the INSEE Sirene registry
+// (not a stored customer): use the result to prefill CustomerParams.
+lookup, _ := client.Customers.Lookup(&facturino.CustomerLookupParams{
     SIRET: "12345678901234",
 })
+if lookup.Found {
+    fmt.Println(lookup.Data.Name, lookup.Data.LegalForm.Sigle)
+}
 ```
 
 ### Products
@@ -204,12 +224,14 @@ ri, _ := client.RecurringInvoices.Create(&facturino.RecurringInvoiceParams{
     CustomerID: "cus_xxx",
     Frequency:  "monthly",
     StartDate:  "2026-04-01",
+    NextGenerationDate: "2026-04-01",
     TemplateInvoice: &facturino.RecurringTemplateParams{
-        Lines: []*facturino.ItemParams{{...}},
+        Items: []*facturino.ItemParams{{...}},
     },
     AutoFinalize: true,
 })
-ri, _ = client.RecurringInvoices.Activate(ri.ID)
+_, _ = client.RecurringInvoices.Pause(ri.ID)
+ri, _ = client.RecurringInvoices.Resume(ri.ID)
 ```
 
 ### Exports

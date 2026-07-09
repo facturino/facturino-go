@@ -52,8 +52,8 @@ type CreditNoteEinvoicing struct {
 
 // CreditNoteFiles holds generated document paths.
 type CreditNoteFiles struct {
-	PDFPath      string `json:"pdfPath,omitempty"`
-	FacturXPath  string `json:"facturxPath,omitempty"`
+	PDFPath     string `json:"pdfPath,omitempty"`
+	FacturXPath string `json:"facturxPath,omitempty"`
 }
 
 // CreditNoteArchive holds hash chain data.
@@ -79,10 +79,10 @@ type CreditNoteParams struct {
 
 // CreditNoteUpdateParams are the parameters for updating a draft credit note.
 type CreditNoteUpdateParams struct {
-	Items      []*ItemParams `json:"items,omitempty"`
-	ReasonCode string        `json:"reasonCode,omitempty"`
-	Reason     string        `json:"reason,omitempty"`
-	Notes      string        `json:"notes,omitempty"`
+	Items []*ItemParams `json:"items,omitempty"`
+	// ReasonCode is set only on create; the update endpoint rejects it.
+	Reason string `json:"reason,omitempty"`
+	Notes  string `json:"notes,omitempty"`
 }
 
 // CreditNoteService operates on credit notes.
@@ -205,6 +205,16 @@ func (s *CreditNoteService) GetFacturX(id string) (*DocumentResponse, error) {
 		return nil, err
 	}
 	return &resp, nil
+}
+
+// GetXML retrieves the credit note XML. Defaults to CII; pass "ubl" for UBL format.
+func (s *CreditNoteService) GetXML(id string, format string) ([]byte, error) {
+	path := fmt.Sprintf("/credit-notes/%s/xml", id)
+	if format != "" {
+		path += "?format=" + format
+	}
+	data, _, err := s.client.doRaw("GET", path, nil, nil)
+	return data, err
 }
 
 // CreditNoteIterator iterates over credit notes.

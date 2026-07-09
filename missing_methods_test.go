@@ -7,36 +7,10 @@ import (
 	"testing"
 )
 
-// Tests for the methods backfilled to reach 100% API coverage:
-//   - Account.ScheduleDeletion / CancelDeletion / RequestExport /
-//     DownloadExport / UpdateNotifications
-//   - Company.Create / UpdateInvoicingSettings / AddMilestone
+// Tests for:
+//   - Account.RequestExport / DownloadExport
+//   - Company.Create / AddMilestone
 //   - Invoice.CreatePortalLink
-
-func TestAccountScheduleAndCancelDeletion(t *testing.T) {
-	client, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/v1/account/schedule-deletion":
-			fmt.Fprint(w, `{"object":"account_deletion","deletionScheduledAt":"2026-06-20T00:00:00Z","message":"Scheduled."}`)
-		case "/v1/account/cancel-deletion":
-			fmt.Fprint(w, `{"object":"account_deletion"}`)
-		default:
-			t.Errorf("unexpected path %s", r.URL.Path)
-		}
-	})
-
-	scheduled, err := client.Account.ScheduleDeletion()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.HasPrefix(scheduled.DeletionScheduledAt, "2026-") {
-		t.Errorf("DeletionScheduledAt = %q", scheduled.DeletionScheduledAt)
-	}
-
-	if _, err := client.Account.CancelDeletion(); err != nil {
-		t.Fatal(err)
-	}
-}
 
 func TestAccountRequestAndDownloadExport(t *testing.T) {
 	client, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) {
@@ -67,27 +41,6 @@ func TestAccountRequestAndDownloadExport(t *testing.T) {
 	}
 }
 
-func TestAccountUpdateNotifications(t *testing.T) {
-	client, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "PATCH" || r.URL.Path != "/v1/account/notifications" {
-			t.Errorf("unexpected %s %s", r.Method, r.URL.Path)
-		}
-		fmt.Fprint(w, `{"invoicePaid":false,"productNews":true}`)
-	})
-
-	off, on := false, true
-	out, err := client.Account.UpdateNotifications(&AccountNotificationPreferencesUpdate{
-		InvoicePaid: &off,
-		ProductNews: &on,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if out.InvoicePaid == nil || *out.InvoicePaid != false {
-		t.Errorf("InvoicePaid = %v, want false", out.InvoicePaid)
-	}
-}
-
 func TestCompanyCreate(t *testing.T) {
 	client, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" || r.URL.Path != "/v1/companies" {
@@ -112,25 +65,6 @@ func TestCompanyCreate(t *testing.T) {
 	}
 	if c.ID != "comp_new" {
 		t.Errorf("ID = %q, want comp_new", c.ID)
-	}
-}
-
-func TestCompanyUpdateInvoicingSettings(t *testing.T) {
-	client, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "PATCH" || r.URL.Path != "/v1/companies/comp_x/invoicing-settings" {
-			t.Errorf("unexpected %s %s", r.Method, r.URL.Path)
-		}
-		fmt.Fprint(w, `{"id":"comp_x","vatRegime":"franchise"}`)
-	})
-
-	c, err := client.Companies.UpdateInvoicingSettings("comp_x", &CompanyInvoicingSettingsUpdate{
-		VATRegime: "franchise",
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if c.VATRegime != "franchise" {
-		t.Errorf("VATRegime = %q, want franchise", c.VATRegime)
 	}
 }
 

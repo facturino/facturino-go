@@ -26,8 +26,8 @@ func TestInvoiceCreate(t *testing.T) {
 			"currency":"eur",
 			"livemode":false,
 			"customer":{"ref":"cus_xyz","snapshot":{"name":"ACME Corp","address":{"line1":"1 rue Test","postalCode":"75001","city":"Paris","country":"FR"}}},
-			"items":[{"id":"li_1","description":"Consulting","quantity":"1","unit":"heure","unitPrice":"100.00","discountPercent":"0.00","lineAmount":"100.00","vatRate":"20.00","vatCode":"S","vatAmount":"20.00","lineTotal":"120.00","product":""}],
-			"totals":{"totalHT":"100.00","discountAmount":"0.00","vatBreakdown":[{"rate":"20.00","code":"S","base":"100.00","amount":"20.00"}],"totalVAT":"20.00","totalTTC":"120.00","amountDue":"120.00","amountPaid":"0.00"},
+			"items":[{"id":"li_1","description":"Consulting","quantity":"1","unit":"heure","unitPrice":10000,"discountPercent":0,"lineAmount":10000,"vatRate":2000,"vatCode":"S","vatAmount":2000,"lineTotal":12000,"product":""}],
+			"totals":{"totalHT":10000,"discountAmount":0,"vatBreakdown":[{"rate":2000,"code":"S","base":10000,"amount":2000}],"totalVAT":2000,"totalTTC":12000,"amountDue":12000,"amountPaid":0},
 			"created":"2026-03-15T10:00:00Z",
 			"updated":"2026-03-15T10:00:00Z"
 		}`)
@@ -48,8 +48,8 @@ func TestInvoiceCreate(t *testing.T) {
 	if inv.Status != "draft" {
 		t.Errorf("Status = %q, want %q", inv.Status, "draft")
 	}
-	if inv.Totals.TotalTTC != "120.00" {
-		t.Errorf("TotalTTC = %q, want %q", inv.Totals.TotalTTC, "120.00")
+	if inv.Totals.TotalTTC != 12000 {
+		t.Errorf("TotalTTC = %d, want %d", inv.Totals.TotalTTC, 12000)
 	}
 	if inv.Customer.Ref != "cus_xyz" {
 		t.Errorf("Customer.Ref = %q, want %q", inv.Customer.Ref, "cus_xyz")
@@ -86,7 +86,7 @@ func TestInvoiceGetExpandCreditNotes(t *testing.T) {
 			t.Errorf("expand = %q, want %q", got, "credit_notes")
 		}
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, `{"id":"inv_123","object":"invoice","status":"paid","expanded":{"credit_notes":[{"id":"crn_1","object":"credit_note","status":"finalized"}],"net_balance":"80.00"}}`)
+		fmt.Fprint(w, `{"id":"inv_123","object":"invoice","status":"paid","expanded":{"credit_notes":[{"id":"crn_1","object":"credit_note","status":"finalized"}],"net_balance":8000}}`)
 	})
 
 	inv, err := client.Invoices.Get("inv_123", &InvoiceGetParams{Expand: []string{"credit_notes"}})
@@ -102,8 +102,8 @@ func TestInvoiceGetExpandCreditNotes(t *testing.T) {
 	if inv.Expanded.CreditNotes[0].ID != "crn_1" {
 		t.Errorf("CreditNotes[0].ID = %q, want %q", inv.Expanded.CreditNotes[0].ID, "crn_1")
 	}
-	if inv.Expanded.NetBalance != "80.00" {
-		t.Errorf("NetBalance = %q, want %q", inv.Expanded.NetBalance, "80.00")
+	if inv.Expanded.NetBalance != 8000 {
+		t.Errorf("NetBalance = %d, want %d", inv.Expanded.NetBalance, 8000)
 	}
 }
 
@@ -141,8 +141,9 @@ func TestInvoiceUpdate(t *testing.T) {
 		fmt.Fprint(w, `{"id":"inv_123","object":"invoice","status":"draft","notes":"Updated notes"}`)
 	})
 
+	newNotes := "Updated notes"
 	inv, err := client.Invoices.Update("inv_123", &InvoiceUpdateParams{
-		Notes: "Updated notes",
+		Notes: &newNotes,
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -339,7 +340,7 @@ func TestPaymentCreate(t *testing.T) {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(201)
-		fmt.Fprint(w, `{"id":"pay_abc","object":"payment","amount":"100.00","method":"transfer","paidAt":"2026-03-15T10:00:00Z"}`)
+		fmt.Fprint(w, `{"id":"pay_abc","object":"payment","amount":10000,"method":"transfer","paidAt":"2026-03-15T10:00:00Z"}`)
 	})
 
 	pay, err := client.Payments.Create("inv_123", &PaymentParams{
@@ -367,7 +368,7 @@ func TestCustomerCreateAndGet(t *testing.T) {
 			"name":"ACME Corp",
 			"type":"company",
 			"siret":"12345678901234",
-			"balance":"0.00",
+			"balance":0,
 			"currency":"eur",
 			"active":true,
 			"siretVerified":true,
@@ -403,8 +404,8 @@ func TestProductCreateAndGet(t *testing.T) {
 			"id":"prod_abc",
 			"object":"product",
 			"name":"Widget",
-			"unitPrice":"50.00",
-			"vatRate":"20.00",
+			"unitPrice":5000,
+			"vatRate":2000,
 			"vatCode":"S",
 			"unit":"piece",
 			"active":true,

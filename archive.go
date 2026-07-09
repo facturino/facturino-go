@@ -7,20 +7,20 @@ import (
 
 // Archive is an archived invoice document (PDF + Factur-X + XML).
 type Archive struct {
-	ID           string          `json:"id"`
-	Object       string          `json:"object"`
-	InvoiceID    string          `json:"invoiceId"`
-	Hash         string          `json:"hash"`
-	PreviousHash string          `json:"previousHash"`
-	ArchivedAt   string          `json:"archivedAt"`
-	Files        *ArchiveFiles   `json:"files,omitempty"`
+	ID           string        `json:"id"`
+	Object       string        `json:"object"`
+	InvoiceID    string        `json:"invoiceId"`
+	Hash         string        `json:"hash"`
+	PreviousHash string        `json:"previousHash"`
+	ArchivedAt   string        `json:"archivedAt"`
+	Files        *ArchiveFiles `json:"files,omitempty"`
 }
 
 // ArchiveFiles holds download URLs for archived documents.
 type ArchiveFiles struct {
-	PDFURL      string `json:"pdfUrl,omitempty"`
-	FacturXURL  string `json:"facturxUrl,omitempty"`
-	XMLURL      string `json:"xmlUrl,omitempty"`
+	PDFURL     string `json:"pdfUrl,omitempty"`
+	FacturXURL string `json:"facturxUrl,omitempty"`
+	XMLURL     string `json:"xmlUrl,omitempty"`
 }
 
 // ArchiveService operates on archived invoices.

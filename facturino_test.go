@@ -57,12 +57,6 @@ func TestNew(t *testing.T) {
 	if client.Companies == nil {
 		t.Error("Companies service is nil")
 	}
-	if client.Members == nil {
-		t.Error("Members service is nil")
-	}
-	if client.APIKeys == nil {
-		t.Error("APIKeys service is nil")
-	}
 	if client.Exports == nil {
 		t.Error("Exports service is nil")
 	}

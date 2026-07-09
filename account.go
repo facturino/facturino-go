@@ -53,14 +53,6 @@ func (s *AccountService) Retrieve() (*Account, error) {
 	return &account, nil
 }
 
-// AccountDeletionResponse is the payload returned when a deletion is
-// scheduled.
-type AccountDeletionResponse struct {
-	Object                string `json:"object"`
-	DeletionScheduledAt   string `json:"deletionScheduledAt,omitempty"`
-	Message               string `json:"message,omitempty"`
-}
-
 // AccountExportResponse is the ack returned by POST /v1/account/export.
 type AccountExportResponse struct {
 	Object   string `json:"object"`
@@ -74,39 +66,6 @@ type AccountExportResponse struct {
 type AccountExportDownload struct {
 	URL       string `json:"url"`
 	ExpiresAt string `json:"expiresAt,omitempty"`
-}
-
-// AccountNotificationPreferencesUpdate is the body for PATCH
-// /v1/account/notifications. Pointers let callers omit a field by
-// leaving it nil — the API merges only the fields explicitly set.
-type AccountNotificationPreferencesUpdate struct {
-	InvoicePaid     *bool `json:"invoicePaid,omitempty"`
-	InvoiceOverdue  *bool `json:"invoiceOverdue,omitempty"`
-	QuoteAccepted   *bool `json:"quoteAccepted,omitempty"`
-	PAReceived      *bool `json:"paReceived,omitempty"`
-	ProductNews     *bool `json:"productNews,omitempty"`
-}
-
-// ScheduleDeletion schedules the authenticated account for deletion in
-// 30 days (RGPD article 17). Returns 409 if a deletion is already
-// scheduled, and 400 while the account still has an active paid
-// subscription. Reversible during the grace period via CancelDeletion.
-func (s *AccountService) ScheduleDeletion() (*AccountDeletionResponse, error) {
-	var out AccountDeletionResponse
-	if err := s.client.post("/account/schedule-deletion", nil, &out, nil); err != nil {
-		return nil, err
-	}
-	return &out, nil
-}
-
-// CancelDeletion cancels a pending account deletion (within the
-// 30-day grace window).
-func (s *AccountService) CancelDeletion() (*AccountDeletionResponse, error) {
-	var out AccountDeletionResponse
-	if err := s.client.post("/account/cancel-deletion", nil, &out, nil); err != nil {
-		return nil, err
-	}
-	return &out, nil
 }
 
 // RequestExport starts a full data export (RGPD article 20). Returns
@@ -126,17 +85,6 @@ func (s *AccountService) RequestExport() (*AccountExportResponse, error) {
 func (s *AccountService) DownloadExport(exportID string) (*AccountExportDownload, error) {
 	var out AccountExportDownload
 	if err := s.client.get(fmt.Sprintf("/account/exports/%s/download", exportID), nil, &out); err != nil {
-		return nil, err
-	}
-	return &out, nil
-}
-
-// UpdateNotifications updates the per-channel email-notification
-// preferences. Per-event channel preferences live under
-// NotificationService.UpdatePreferences instead.
-func (s *AccountService) UpdateNotifications(params *AccountNotificationPreferencesUpdate) (*AccountNotificationPreferencesUpdate, error) {
-	var out AccountNotificationPreferencesUpdate
-	if err := s.client.patch("/account/notifications", params, &out); err != nil {
 		return nil, err
 	}
 	return &out, nil

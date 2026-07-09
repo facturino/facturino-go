@@ -10,15 +10,15 @@ type Company struct {
 	ID     string `json:"id"`
 	UserID string `json:"userId"`
 
-	Name         string `json:"name"`
-	SIRET        string `json:"siret"`
-	SIREN        string `json:"siren"`
-	VATNumber    string `json:"vatNumber"`
-	LegalForm    string `json:"legalForm"`
-	APECode      string `json:"apeCode,omitempty"`
-	RCS          string `json:"rcs,omitempty"`
-	CapitalSocial string `json:"capitalSocial,omitempty"`
-	TVAIntracom  string `json:"tvaIntracom"`
+	Name          string     `json:"name"`
+	SIRET         string     `json:"siret"`
+	SIREN         string     `json:"siren"`
+	VATNumber     string     `json:"vatNumber"`
+	LegalForm     *LegalForm `json:"legalForm,omitempty"`
+	NAF           *NafCode   `json:"naf,omitempty"`
+	RCS           string     `json:"rcs,omitempty"`
+	CapitalSocial string     `json:"capitalSocial,omitempty"`
+	TVAIntracom   string     `json:"tvaIntracom"`
 
 	Address *Address `json:"address"`
 	Email   string   `json:"email,omitempty"`
@@ -45,8 +45,8 @@ type Company struct {
 	CGVPdfPath   string `json:"cgvPdfPath,omitempty"`
 	CGVUpdatedAt string `json:"cgvUpdatedAt,omitempty"`
 
-	StripeConnectAccountID string `json:"stripeConnectAccountId,omitempty"`
-	Einvoicing *EinvoicingConfig `json:"einvoicing,omitempty"`
+	StripeConnectAccountID string            `json:"stripeConnectAccountId,omitempty"`
+	Einvoicing             *EinvoicingConfig `json:"einvoicing,omitempty"`
 
 	MonthlyInvoiceCount    int `json:"monthlyInvoiceCount,omitempty"`
 	MonthlyQuoteCount      int `json:"monthlyQuoteCount,omitempty"`
@@ -118,29 +118,20 @@ type AccountingConfig struct {
 // Subject to the per-plan company quota (free / essential: 1, pro: 3,
 // cabinet_*: 50+); exceeding the quota returns a 402 plan_limit_error.
 type CompanyCreateParams struct {
-	Name          string       `json:"name"`
-	SIRET         string       `json:"siret"`
-	Address       *Address     `json:"address"`
-	VATNumber     string       `json:"vatNumber,omitempty"`
-	LegalForm     interface{}  `json:"legalForm,omitempty"`
-	NAF           interface{}  `json:"naf,omitempty"`
-	TVAIntracom   string       `json:"tvaIntracom,omitempty"`
-	RCS           string       `json:"rcs,omitempty"`
-	CapitalSocial string       `json:"capitalSocial,omitempty"`
-	VATRegime     string       `json:"vatRegime,omitempty"`
-	Email         string       `json:"email,omitempty"`
-	Phone         string       `json:"phone,omitempty"`
-	Website       string       `json:"website,omitempty"`
-	BankDetails   *BankDetails `json:"bankDetails,omitempty"`
-}
-
-// CompanyInvoicingSettingsUpdate is the body for PATCH
-// /v1/companies/:id/invoicing-settings.
-type CompanyInvoicingSettingsUpdate struct {
-	VATRegime       string           `json:"vatRegime,omitempty"`
-	InvoiceSettings *InvoiceSettings `json:"invoiceSettings,omitempty"`
-	QuoteSettings   *QuoteSettings   `json:"quoteSettings,omitempty"`
-	CreditNoteSettings *CreditNoteSettings `json:"creditNoteSettings,omitempty"`
+	Name          string          `json:"name"`
+	SIRET         string          `json:"siret"`
+	Address       *Address        `json:"address"`
+	VATNumber     string          `json:"vatNumber,omitempty"`
+	LegalForm     *LegalFormInput `json:"legalForm,omitempty"`
+	NAF           *NafInput       `json:"naf,omitempty"`
+	TVAIntracom   string          `json:"tvaIntracom,omitempty"`
+	RCS           string          `json:"rcs,omitempty"`
+	CapitalSocial string          `json:"capitalSocial,omitempty"`
+	VATRegime     string          `json:"vatRegime,omitempty"`
+	Email         string          `json:"email,omitempty"`
+	Phone         string          `json:"phone,omitempty"`
+	Website       string          `json:"website,omitempty"`
+	BankDetails   *BankDetails    `json:"bankDetails,omitempty"`
 }
 
 // CompanyMilestoneResponse is the acknowledgement returned by
@@ -153,13 +144,13 @@ type CompanyMilestoneResponse struct {
 
 // CompanyUpdateParams are the parameters for updating a company.
 type CompanyUpdateParams struct {
-	Name         string   `json:"name,omitempty"`
-	SIRET        string   `json:"siret,omitempty"`
-	VATNumber    string   `json:"vatNumber,omitempty"`
-	LegalForm    string   `json:"legalForm,omitempty"`
-	APECode      string   `json:"apeCode,omitempty"`
-	RCS          string   `json:"rcs,omitempty"`
-	CapitalSocial string  `json:"capitalSocial,omitempty"`
+	Name          string          `json:"name,omitempty"`
+	SIRET         string          `json:"siret,omitempty"`
+	VATNumber     string          `json:"vatNumber,omitempty"`
+	LegalForm     *LegalFormInput `json:"legalForm,omitempty"`
+	NAF           *NafInput       `json:"naf,omitempty"`
+	RCS           string          `json:"rcs,omitempty"`
+	CapitalSocial string          `json:"capitalSocial,omitempty"`
 
 	Address *Address `json:"address,omitempty"`
 	Email   string   `json:"email,omitempty"`
@@ -187,26 +178,6 @@ type CGVResponse struct {
 	URL       string `json:"url,omitempty"`
 	UpdatedAt string `json:"updatedAt,omitempty"`
 	Deleted   bool   `json:"deleted,omitempty"`
-}
-
-// StripeConnectParams are the parameters for connecting a Stripe account.
-type StripeConnectParams struct {
-	ReturnURL  string `json:"return_url,omitempty"`
-	RefreshURL string `json:"refresh_url,omitempty"`
-}
-
-// StripeConnectResponse is returned by Stripe connect operations.
-type StripeConnectResponse struct {
-	Object    string `json:"object"`
-	URL       string `json:"url,omitempty"`
-	Connected bool   `json:"connected,omitempty"`
-	AccountID string `json:"account_id,omitempty"`
-}
-
-// StripeDashboardResponse is returned by the Stripe dashboard endpoint.
-type StripeDashboardResponse struct {
-	Object string `json:"object"`
-	URL    string `json:"url"`
 }
 
 // CompanyService operates on companies.
@@ -281,17 +252,6 @@ func (s *CompanyService) GetCGV(id string) (*CGVResponse, error) {
 	return &resp, nil
 }
 
-// UpdateInvoicingSettings updates the invoicing settings (numbering
-// format, default payment terms, default VAT rate, footer mentions…)
-// and the VAT regime for the company.
-func (s *CompanyService) UpdateInvoicingSettings(id string, params *CompanyInvoicingSettingsUpdate) (*Company, error) {
-	var c Company
-	if err := s.client.patch(fmt.Sprintf("/companies/%s/invoicing-settings", id), params, &c); err != nil {
-		return nil, err
-	}
-	return &c, nil
-}
-
 // AddMilestone marks an onboarding milestone as reached (for example
 // "first_invoice_sent", "pa_connected", "bank_added"). Used by the
 // dashboard to compute the onboarding progress and surface remaining
@@ -316,85 +276,4 @@ type EinvoicingConfig struct {
 	Provider     string `json:"provider,omitempty"`
 	ConnectedAt  string `json:"connectedAt,omitempty"`
 	HealthStatus string `json:"healthStatus,omitempty"`
-}
-
-// PAConnectionParams are the parameters for connecting a PA.
-type PAConnectionParams struct {
-	Provider     string `json:"provider"`
-	ClientID     string `json:"clientId,omitempty"`
-	ClientSecret string `json:"clientSecret,omitempty"`
-	APIKey       string `json:"apiKey,omitempty"`
-	CustomBaseURL string `json:"customBaseUrl,omitempty"`
-}
-
-// PAConnectionResult is returned by ConnectPA.
-type PAConnectionResult struct {
-	Provider    string `json:"provider"`
-	Status      string `json:"status"`
-	ConnectedAt string `json:"connectedAt"`
-}
-
-// PATestResult is returned by TestPAConnection. Healthy reflects whether the PA
-// is reachable with valid credentials. ErrorCode is set only when Healthy is
-// false: "pa_credentials_invalid" (fix credentials), "pa_unreachable"
-// (PA/network outage), "pa_not_supported" (the PA exposes no directory lookup —
-// a capability gap, not a misconfiguration), or "pa_error".
-type PATestResult struct {
-	Object    string `json:"object"`
-	Healthy   bool   `json:"healthy"`
-	LatencyMs int    `json:"latencyMs"`
-	Details   string `json:"details"`
-	Provider  string `json:"provider"`
-	TestedAt  string `json:"testedAt"`
-	ErrorCode string `json:"errorCode,omitempty"`
-}
-
-// ConnectPA connects a PA to the company. The client provides their own PA account credentials.
-func (s *CompanyService) ConnectPA(id string, params *PAConnectionParams) (*PAConnectionResult, error) {
-	var r PAConnectionResult
-	err := s.client.post(fmt.Sprintf("/companies/%s/pa-connection", id), params, &r, nil)
-	if err != nil {
-		return nil, err
-	}
-	return &r, nil
-}
-
-// DisconnectPA disconnects the PA from a company.
-func (s *CompanyService) DisconnectPA(id string) error {
-	return s.client.del(fmt.Sprintf("/companies/%s/pa-connection", id))
-}
-
-// TestPAConnection tests the PA connection (health check + credential validation).
-func (s *CompanyService) TestPAConnection(id string) (*PATestResult, error) {
-	var r PATestResult
-	err := s.client.post(fmt.Sprintf("/companies/%s/pa-connection/test", id), nil, &r, nil)
-	if err != nil {
-		return nil, err
-	}
-	return &r, nil
-}
-
-// ConnectStripe initiates Stripe Connect onboarding for online payments (Pro+ plan).
-func (s *CompanyService) ConnectStripe(params *StripeConnectParams) (*StripeConnectResponse, error) {
-	var resp StripeConnectResponse
-	err := s.client.post("/companies/stripe-connect", params, &resp, nil)
-	if err != nil {
-		return nil, err
-	}
-	return &resp, nil
-}
-
-// GetStripeDashboard returns the Stripe dashboard URL for the connected account.
-func (s *CompanyService) GetStripeDashboard() (*StripeDashboardResponse, error) {
-	var resp StripeDashboardResponse
-	err := s.client.get("/companies/stripe-dashboard", nil, &resp)
-	if err != nil {
-		return nil, err
-	}
-	return &resp, nil
-}
-
-// DisconnectStripe disconnects the Stripe account.
-func (s *CompanyService) DisconnectStripe() error {
-	return s.client.del("/companies/stripe-connect")
 }

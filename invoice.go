@@ -55,9 +55,9 @@ type InvoiceExpanded struct {
 	CreditNotes []*CreditNote `json:"credit_notes,omitempty"`
 
 	// NetBalance is the invoice total less the sum of its credit notes,
-	// as a decimal string. It is populated when expand includes
+	// as integer centimes. It is populated when expand includes
 	// "credit_notes".
-	NetBalance string `json:"net_balance,omitempty"`
+	NetBalance int `json:"net_balance,omitempty"`
 }
 
 // InvoiceDates holds invoice dates.
@@ -84,15 +84,15 @@ type InvoicePaymentTerms struct {
 
 // InvoiceEinvoicing holds e-invoicing (PA) status.
 type InvoiceEinvoicing struct {
-	PAID              string `json:"paId"`
-	PAStatus          string `json:"paStatus"`
-	PATransactionID   string `json:"paTransactionId"`
-	PAErrorCode       string `json:"paErrorCode"`
-	PAIdempotencyKey  string `json:"paIdempotencyKey"`
-	PeppolDeliveryID  string `json:"peppolDeliveryId"`
-	EreportingID      string `json:"ereportingId"`
-	SentAt            string `json:"sentAt"`
-	TrackingID        string `json:"trackingId"`
+	PAID             string `json:"paId"`
+	PAStatus         string `json:"paStatus"`
+	PATransactionID  string `json:"paTransactionId"`
+	PAErrorCode      string `json:"paErrorCode"`
+	PAIdempotencyKey string `json:"paIdempotencyKey"`
+	PeppolDeliveryID string `json:"peppolDeliveryId"`
+	EreportingID     string `json:"ereportingId"`
+	SentAt           string `json:"sentAt"`
+	TrackingID       string `json:"trackingId"`
 }
 
 // InvoiceArchive holds hash chain data.
@@ -105,9 +105,9 @@ type InvoiceArchive struct {
 
 // InvoiceFiles holds storage paths for generated documents (PDF, Factur-X, XML).
 type InvoiceFiles struct {
-	PDFPath      string `json:"pdfPath,omitempty"`
-	FacturXPath  string `json:"facturxPath,omitempty"`
-	XMLPath      string `json:"xmlPath,omitempty"`
+	PDFPath     string `json:"pdfPath,omitempty"`
+	FacturXPath string `json:"facturxPath,omitempty"`
+	XMLPath     string `json:"xmlPath,omitempty"`
 }
 
 // InvoicePortal holds payment portal data.
@@ -153,35 +153,35 @@ type Contact struct {
 type LineItem struct {
 	ID              string `json:"id"`
 	Description     string `json:"description"`
-	Quantity        string `json:"quantity"`
+	Quantity        string `json:"quantity"` // decimal-string count, not money
 	Unit            string `json:"unit"`
-	UnitPrice       string `json:"unitPrice"`
-	DiscountPercent string `json:"discountPercent"`
-	LineAmount      string `json:"lineAmount"`
-	VATRate         string `json:"vatRate"`
+	UnitPrice       int    `json:"unitPrice"`       // integer centimes
+	DiscountPercent int    `json:"discountPercent"` // centièmes de pourcent
+	LineAmount      int    `json:"lineAmount"`
+	VATRate         int    `json:"vatRate"` // centièmes de pourcent
 	VATCode         string `json:"vatCode"`
-	VATAmount       string `json:"vatAmount"`
-	LineTotal       string `json:"lineTotal"`
+	VATAmount       int    `json:"vatAmount"`
+	LineTotal       int    `json:"lineTotal"`
 	Product         string `json:"product"`
 }
 
 // VATBreakdown is a VAT subtotal grouped by rate.
 type VATBreakdown struct {
-	Rate   string `json:"rate"`
+	Rate   int    `json:"rate"` // centièmes de pourcent
 	Code   string `json:"code"`
-	Base   string `json:"base"`
-	Amount string `json:"amount"`
+	Base   int    `json:"base"` // integer centimes
+	Amount int    `json:"amount"`
 }
 
 // Totals is the financial summary of a document.
 type Totals struct {
-	TotalHT        string          `json:"totalHT"`
-	DiscountAmount string          `json:"discountAmount"`
+	TotalHT        int             `json:"totalHT"` // integer centimes
+	DiscountAmount int             `json:"discountAmount"`
 	VATBreakdown   []*VATBreakdown `json:"vatBreakdown"`
-	TotalVAT       string          `json:"totalVAT"`
-	TotalTTC       string          `json:"totalTTC"`
-	AmountDue      string          `json:"amountDue"`
-	AmountPaid     string          `json:"amountPaid"`
+	TotalVAT       int             `json:"totalVAT"`
+	TotalTTC       int             `json:"totalTTC"`
+	AmountDue      int             `json:"amountDue"`
+	AmountPaid     int             `json:"amountPaid"`
 }
 
 // LifecycleEntry records a status change in the audit trail.
@@ -217,24 +217,29 @@ type BuyerParams struct {
 
 // InvoiceParams are the parameters for creating a draft invoice.
 type InvoiceParams struct {
-	Customer            string                   `json:"customerId"`
-	Type                string                   `json:"type,omitempty"`
-	Buyer               *BuyerParams             `json:"buyer"`
-	Items               []*ItemParams            `json:"lines"`
-	Dates               *InvoiceDatesParams      `json:"dates"`
-	Payment             *PaymentTermsParams      `json:"payment"`
-	Einvoicing          *InvoiceEinvoicingParams `json:"einvoicing,omitempty"`
-	PurchaseOrderNumber string                   `json:"purchaseOrderNumber,omitempty"`
-	Notes               string                   `json:"notes,omitempty"`
-	Metadata            map[string]interface{}   `json:"metadata,omitempty"`
+	Customer            string                 `json:"customerId"`
+	Type                string                 `json:"type,omitempty"`
+	Buyer               *BuyerParams           `json:"buyer"`
+	Items               []*ItemParams          `json:"lines"`
+	Dates               *InvoiceDatesParams    `json:"dates"`
+	Payment             *PaymentTermsParams    `json:"payment"`
+	PurchaseOrderNumber string                 `json:"purchaseOrderNumber,omitempty"`
+	Notes               string                 `json:"notes,omitempty"`
+	Metadata            map[string]interface{} `json:"metadata,omitempty"`
+
+	// AutoFinalize finalizes the invoice in the same call (assigns its number).
+	AutoFinalize bool `json:"autoFinalize,omitempty"`
+	// AutoSend finalizes then sends the invoice in the same call: by email to the
+	// customer and/or by deposit to the connected PA.
+	AutoSend *AutoSendParams `json:"autoSend,omitempty"`
 
 	IdempotencyKey string `json:"-"`
 }
 
-// InvoiceEinvoicingParams overrides the e-invoicing format/profile at creation.
-type InvoiceEinvoicingParams struct {
-	Format  string `json:"format,omitempty"`
-	Profile string `json:"profile,omitempty"`
+// AutoSendParams selects the one-shot delivery channels for invoice creation.
+type AutoSendParams struct {
+	Email bool `json:"email,omitempty"`
+	PA    bool `json:"pa,omitempty"`
 }
 
 // InvoiceDatesParams are date overrides for invoice creation.
@@ -260,10 +265,12 @@ type PaymentTermsParams struct {
 
 // InvoiceUpdateParams are the parameters for updating a draft.
 type InvoiceUpdateParams struct {
-	Items    []*ItemParams          `json:"lines,omitempty"`
-	Dates    *InvoiceDatesParams    `json:"dates,omitempty"`
-	Payment  *PaymentTermsParams    `json:"payment,omitempty"`
-	Notes    string                 `json:"notes,omitempty"`
+	Items   []*ItemParams       `json:"lines,omitempty"`
+	Dates   *InvoiceDatesParams `json:"dates,omitempty"`
+	Payment *PaymentTermsParams `json:"payment,omitempty"`
+	// Notes is a pointer so that an empty string clears the notes instead of
+	// being dropped by omitempty. Leave nil to keep the current notes.
+	Notes    *string                `json:"notes,omitempty"`
 	Metadata map[string]interface{} `json:"metadata,omitempty"`
 }
 
@@ -300,7 +307,7 @@ type DocumentResponse struct {
 	Object    string `json:"object,omitempty"`
 	Type      string `json:"type,omitempty"`
 	Status    string `json:"status,omitempty"`
-	InvoiceID string `json:"invoice_id,omitempty"`
+	InvoiceID string `json:"invoiceId,omitempty"`
 }
 
 // PaymentLinkResponse is returned when creating a Stripe payment link.
@@ -621,9 +628,23 @@ func (s *InvoiceService) CreatePortalLink(id string) (*InvoicePortalLinkResponse
 	return &resp, nil
 }
 
-// CreateIncoming creates an incoming invoice (received from a supplier).
-func (s *InvoiceService) CreateIncoming(params *InvoiceParams) (*Invoice, error) {
-	var inv Invoice
+// IncomingInvoiceParams records a supplier invoice received outside the
+// platform (manual entry), so it appears in the inbound register alongside
+// e-invoices delivered via the PA.
+type IncomingInvoiceParams struct {
+	SenderName  string `json:"senderName"`
+	SenderSiret string `json:"senderSiret,omitempty"`
+	// Amount is the total incl. VAT, in integer cents.
+	Amount    int    `json:"amount"`
+	Reference string `json:"reference,omitempty"`
+	Notes     string `json:"notes,omitempty"`
+
+	IdempotencyKey string `json:"-"`
+}
+
+// CreateIncoming records a supplier invoice received outside the platform.
+func (s *InvoiceService) CreateIncoming(params *IncomingInvoiceParams) (*ReceivedInvoice, error) {
+	var inv ReceivedInvoice
 	opts := &requestOption{}
 	if params.IdempotencyKey != "" {
 		opts.idempotencyKey = params.IdempotencyKey
@@ -635,10 +656,12 @@ func (s *InvoiceService) CreateIncoming(params *InvoiceParams) (*Invoice, error)
 	return &inv, nil
 }
 
-// ListIncoming returns a paginated iterator over incoming invoices.
-func (s *InvoiceService) ListIncoming(params *ListParams) *InvoiceIterator {
-	iter := newIterator[*Invoice](s.client, "/invoices/incoming", params, decodeInvoice)
-	return &InvoiceIterator{iter: iter}
+// ListIncoming returns a paginated iterator over received (incoming) invoices.
+// These are supplier invoices received via a PA, so each item is a
+// ReceivedInvoice — iterate with ReceivedInvoiceIterator.ReceivedInvoice().
+func (s *InvoiceService) ListIncoming(params *ListParams) *ReceivedInvoiceIterator {
+	iter := newIterator[*ReceivedInvoice](s.client, "/invoices/incoming", params, decodeReceivedInvoice)
+	return &ReceivedInvoiceIterator{iter: iter}
 }
 
 // InvoiceIterator iterates over invoices.

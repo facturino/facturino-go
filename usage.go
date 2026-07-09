@@ -1,37 +1,29 @@
 package facturino
 
 // UsageSummary is the current-period consumption snapshot for the
-// authenticated account.
+// authenticated account, as returned by GET /v1/usage. Drive in-app quota
+// gauges and upgrade prompts from it, before a limit triggers a 402.
 type UsageSummary struct {
-	Object  string                `json:"object"`
-	Plan    string                `json:"plan"`
-	Period  *UsagePeriod          `json:"period,omitempty"`
-	Metrics map[string]UsageMeter `json:"metrics,omitempty"`
-
-	// Legacy / top-level meters mirrored on the response for convenience.
-	InvoicesIssued *UsageMeter `json:"invoicesIssued,omitempty"`
-	StorageBytes   *UsageMeter `json:"storageBytes,omitempty"`
-	APICalls       *UsageMeter `json:"apiCalls,omitempty"`
-	PASubmissions  *UsageMeter `json:"paSubmissions,omitempty"`
+	Object string `json:"object"`
+	Plan   string `json:"plan"`
+	// PeriodStart is the ISO 8601 start of the current monthly metering period.
+	PeriodStart string `json:"periodStart"`
+	// Counters maps each metered dimension to its meter, e.g.
+	// "invoicesMonth", "apiRequestsMonth", "quotesMonth", "customers",
+	// "products", "members", "webhookEndpoints", "companies".
+	Counters map[string]UsageMeter `json:"counters"`
 }
 
-// UsagePeriod bounds the period over which the usage is reported.
-type UsagePeriod struct {
-	Start string `json:"start"`
-	End   string `json:"end"`
-}
-
-// UsageMeter is the consumption / limit pair for one metered
-// dimension.
+// UsageMeter is the consumption / limit pair for one metered dimension.
+// Limit is nil when the dimension is unlimited on the current plan.
 type UsageMeter struct {
-	Used  int `json:"used"`
-	Limit int `json:"limit"`
+	Used  int  `json:"used"`
+	Limit *int `json:"limit"`
 }
 
 // UsageService exposes the current-period consumption metrics for the
-// authenticated account (invoices issued, storage used, PA submissions,
-// API calls). Useful for in-app dashboards and proactive plan-upgrade
-// nudges before a quota hit triggers a 402 from the API.
+// authenticated account. Useful for in-app dashboards and proactive
+// plan-upgrade nudges before a quota hit triggers a 402 from the API.
 type UsageService struct {
 	client *httpClient
 }

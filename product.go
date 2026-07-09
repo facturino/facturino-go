@@ -18,8 +18,8 @@ type Product struct {
 	Reference   string `json:"reference,omitempty"`
 	Category    string `json:"category,omitempty"`
 
-	UnitPrice string `json:"unitPrice"`
-	VATRate   string `json:"vatRate"`
+	UnitPrice int    `json:"unitPrice"` // integer centimes
+	VATRate   int    `json:"vatRate"`   // centièmes de pourcent
 	VATCode   string `json:"vatCode"`
 	Unit      string `json:"unit"`
 
@@ -34,8 +34,8 @@ type Product struct {
 
 // PriceHistoryEntry records a price change.
 type PriceHistoryEntry struct {
-	Price     string `json:"price"`
-	VATRate   string `json:"vatRate"`
+	Price     int    `json:"price"`   // integer centimes
+	VATRate   int    `json:"vatRate"` // centièmes de pourcent
 	ChangedAt string `json:"changedAt"`
 	ChangedBy string `json:"changedBy"`
 }
@@ -57,16 +57,19 @@ type ProductParams struct {
 
 // ProductUpdateParams are the parameters for updating a product.
 type ProductUpdateParams struct {
-	Name        string   `json:"name,omitempty"`
-	Description string   `json:"description,omitempty"`
-	Reference   string   `json:"reference,omitempty"`
-	Category    string   `json:"category,omitempty"`
-	UnitPrice   int      `json:"unitPrice,omitempty"`
-	VATRate     int      `json:"vatRate,omitempty"`
-	VATCode     string   `json:"vatCode,omitempty"`
-	Unit        string   `json:"unit,omitempty"`
-	Tags        []string `json:"tags,omitempty"`
-	Active      *bool    `json:"active,omitempty"`
+	Name        string `json:"name,omitempty"`
+	Description string `json:"description,omitempty"`
+	Reference   string `json:"reference,omitempty"`
+	Category    string `json:"category,omitempty"`
+	// UnitPrice and VATRate are pointers so that 0 (a free product or a 0%
+	// VAT rate) is sent instead of being dropped by omitempty. Leave nil to
+	// keep the current value.
+	UnitPrice *int     `json:"unitPrice,omitempty"`
+	VATRate   *int     `json:"vatRate,omitempty"`
+	VATCode   string   `json:"vatCode,omitempty"`
+	Unit      string   `json:"unit,omitempty"`
+	Tags      []string `json:"tags,omitempty"`
+	Active    *bool    `json:"active,omitempty"`
 }
 
 // ProductService operates on products.
@@ -151,7 +154,7 @@ func (s *ProductService) List(params *ProductListParams) *ProductIterator {
 	return &ProductIterator{iter: iter}
 }
 
-// ImportCSV imports products from base64-encoded CSV content.
+// ImportCSV imports products from raw CSV text (not base64-encoded).
 func (s *ProductService) ImportCSV(content string) (*ImportResult, error) {
 	var result ImportResult
 	body := map[string]string{"csv": content}
@@ -162,14 +165,10 @@ func (s *ProductService) ImportCSV(content string) (*ImportResult, error) {
 	return &result, nil
 }
 
-// ExportCSV triggers a CSV export.
-func (s *ProductService) ExportCSV() (*ExportResult, error) {
-	var result ExportResult
-	err := s.client.get("/products/export", nil, &result)
-	if err != nil {
-		return nil, err
-	}
-	return &result, nil
+// ExportCSV returns the full product list as raw CSV (Content-Type text/csv).
+func (s *ProductService) ExportCSV() (string, error) {
+	data, _, err := s.client.doRaw("GET", "/products/export", nil, nil)
+	return string(data), err
 }
 
 // ProductIterator iterates over products.

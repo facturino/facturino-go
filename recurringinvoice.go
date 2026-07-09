@@ -14,12 +14,12 @@ type RecurringInvoice struct {
 	CustomerID string `json:"customerId"`
 	Currency   string `json:"currency"`
 
-	Frequency      string `json:"frequency"`
-	CustomInterval int    `json:"customInterval,omitempty"`
-	CustomUnit     string `json:"customUnit,omitempty"`
-	StartDate      string `json:"startDate"`
+	Frequency          string `json:"frequency"`
+	CustomInterval     int    `json:"customInterval,omitempty"`
+	CustomUnit         string `json:"customUnit,omitempty"`
+	StartDate          string `json:"startDate"`
 	NextGenerationDate string `json:"nextGenerationDate"`
-	EndDate        string `json:"endDate,omitempty"`
+	EndDate            string `json:"endDate,omitempty"`
 
 	TemplateInvoice *RecurringTemplate `json:"templateInvoice"`
 
@@ -47,13 +47,14 @@ type RecurringTemplate struct {
 // RecurringInvoiceParams are the parameters for creating a recurring invoice.
 type RecurringInvoiceParams struct {
 	CustomerID string `json:"customerId"`
-	Currency   string `json:"currency,omitempty"`
 
 	Frequency      string `json:"frequency"`
 	CustomInterval int    `json:"customInterval,omitempty"`
 	CustomUnit     string `json:"customUnit,omitempty"`
 	StartDate      string `json:"startDate"`
 	EndDate        string `json:"endDate,omitempty"`
+	// NextGenerationDate is when the first invoice is generated (required).
+	NextGenerationDate string `json:"nextGenerationDate"`
 
 	TemplateInvoice *RecurringTemplateParams `json:"templateInvoice"`
 
@@ -65,11 +66,10 @@ type RecurringInvoiceParams struct {
 
 // RecurringTemplateParams are the template parameters for recurring invoice creation.
 type RecurringTemplateParams struct {
-	Lines            []*ItemParams `json:"lines"`
+	Items            []*ItemParams `json:"items"`
 	Notes            string        `json:"notes,omitempty"`
 	PaymentMethod    string        `json:"paymentMethod,omitempty"`
 	PaymentTermsDays int           `json:"paymentTermsDays,omitempty"`
-	Currency         string        `json:"currency,omitempty"`
 }
 
 // RecurringInvoiceUpdateParams are the parameters for updating a recurring invoice.

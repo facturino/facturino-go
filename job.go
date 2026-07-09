@@ -15,8 +15,10 @@ type Job struct {
 	UpdatedAt string `json:"updatedAt"`
 	ExpireAt  string `json:"expireAt,omitempty"`
 
-	DownloadURL string `json:"download_url,omitempty"`
-	ExpiresIn   int    `json:"expires_in,omitempty"`
+	// URL is a signed, time-limited link to download the generated document,
+	// populated once Status is "completed". ExpiresAt is its ISO 8601 expiry.
+	URL       string `json:"url,omitempty"`
+	ExpiresAt string `json:"expiresAt,omitempty"`
 }
 
 // JobService operates on async jobs.

@@ -16,9 +16,9 @@ type Quote struct {
 	Number   string       `json:"number"`
 	Currency string       `json:"currency"`
 
-	VersionNumber    int    `json:"versionNumber"`
-	ParentQuoteID    string `json:"parentQuoteId,omitempty"`
-	IsLatestVersion  bool   `json:"isLatestVersion"`
+	VersionNumber   int    `json:"versionNumber"`
+	ParentQuoteID   string `json:"parentQuoteId,omitempty"`
+	IsLatestVersion bool   `json:"isLatestVersion"`
 
 	Items  []*LineItem `json:"items"`
 	Totals *Totals     `json:"totals"`
@@ -26,8 +26,8 @@ type Quote struct {
 	Dates *QuoteDates `json:"dates"`
 	Notes string      `json:"notes,omitempty"`
 
-	ViewedAt  string `json:"viewedAt,omitempty"`
-	ViewCount int    `json:"viewCount"`
+	ViewedAt   string `json:"viewedAt,omitempty"`
+	ViewCount  int    `json:"viewCount"`
 	AcceptedAt string `json:"acceptedAt,omitempty"`
 
 	Signature *QuoteSignature `json:"signature,omitempty"`
@@ -62,20 +62,21 @@ type QuoteFiles struct {
 
 // QuoteParams are the parameters for creating a quote.
 type QuoteParams struct {
-	Customer    string        `json:"customerId"`
-	Items       []*ItemParams `json:"lines"`
-	Notes       string        `json:"notes,omitempty"`
-	ValidUntil  string        `json:"validUntil,omitempty"`
-	Currency    string        `json:"currency,omitempty"`
+	Customer string        `json:"customerId"`
+	Items    []*ItemParams `json:"lines"`
+	Notes    string        `json:"notes,omitempty"`
+	// ValidityDays is the validity window in days from the issue date. The API
+	// also accepts an explicit dates.validUntil; this is the simpler form.
+	ValidityDays int `json:"validityDays,omitempty"`
 
 	IdempotencyKey string `json:"-"`
 }
 
 // QuoteUpdateParams are the parameters for updating a draft quote.
 type QuoteUpdateParams struct {
-	Items      []*ItemParams `json:"lines,omitempty"`
-	Notes      string        `json:"notes,omitempty"`
-	ValidUntil string        `json:"validUntil,omitempty"`
+	Items        []*ItemParams `json:"lines,omitempty"`
+	Notes        string        `json:"notes,omitempty"`
+	ValidityDays int           `json:"validityDays,omitempty"`
 }
 
 // QuoteService operates on quotes.
