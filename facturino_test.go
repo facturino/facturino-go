@@ -488,7 +488,7 @@ func TestMalformedErrorResponse(t *testing.T) {
 func TestRequestBodySerialization(t *testing.T) {
 	var receivedBody map[string]interface{}
 	client, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) {
-		json.NewDecoder(r.Body).Decode(&receivedBody)
+		_ = json.NewDecoder(r.Body).Decode(&receivedBody)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(201)
 		fmt.Fprint(w, `{"id":"inv_123","object":"invoice","status":"draft"}`)

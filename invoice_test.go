@@ -292,7 +292,7 @@ func TestInvoiceCreatePaymentLink(t *testing.T) {
 			t.Errorf("Path = %q, want /v1/invoices/inv_123/payment-link", r.URL.Path)
 		}
 		var body map[string]string
-		json.NewDecoder(r.Body).Decode(&body)
+		_ = json.NewDecoder(r.Body).Decode(&body)
 		if body["success_url"] != "https://example.com/success" {
 			t.Errorf("success_url = %q", body["success_url"])
 		}
