@@ -33,6 +33,7 @@ type Client struct {
 	Reference         *ReferenceService
 	Usage             *UsageService
 	Validate          *ValidateService
+	Health            *HealthService
 
 	client *httpClient
 }
@@ -119,6 +120,7 @@ func buildClient(hc *httpClient) *Client {
 	c.Reference = &ReferenceService{client: hc}
 	c.Usage = &UsageService{client: hc}
 	c.Validate = &ValidateService{client: hc}
+	c.Health = &HealthService{client: hc}
 
 	return c
 }

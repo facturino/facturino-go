@@ -38,6 +38,31 @@ type NafCodeList struct {
 	HasMore bool      `json:"has_more"`
 }
 
+// PaProvider is one supported Plateforme Agréée (PA) in the public catalogue.
+// Facturino is BYOPA: the customer brings their own PA credentials, so
+// integrations use this list to render a provider picker and the credential
+// fields each PA requires.
+type PaProvider struct {
+	Slug             string `json:"slug"`
+	Name             string `json:"name"`
+	Description      string `json:"description"`
+	LogoURL          string `json:"logoUrl,omitempty"`
+	WebsiteURL       string `json:"websiteUrl,omitempty"`
+	DocumentationURL string `json:"documentationUrl,omitempty"`
+	SignupURL        string `json:"signupUrl,omitempty"`
+	AuthType         string `json:"authType"`
+	CredentialLabel1 string `json:"credentialLabel1,omitempty"`
+	CredentialLabel2 string `json:"credentialLabel2,omitempty"`
+	RequiresBaseURL  bool   `json:"requiresBaseUrl"`
+	PricingSummary   string `json:"pricingSummary,omitempty"`
+}
+
+// PaProviderList is the response for GET /v1/pa-providers.
+type PaProviderList struct {
+	Object string       `json:"object"`
+	Data   []PaProvider `json:"data"`
+}
+
 // LegalFormInput sets a company/customer legal form on create or update.
 // Provide either the 4-digit INSEE Code or the Sigle (e.g. "SAS", "SASU");
 // the API resolves the canonical sub-object. Do not send a Label — the input
@@ -86,6 +111,16 @@ func (s *ReferenceService) ListNafCodes(params *ReferenceListParams) (*NafCodeLi
 	var out NafCodeList
 	q := encodeReferenceParams(params)
 	if err := s.client.get("/reference/naf-codes", q, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// ListPaProviders returns the supported Plateformes Agréées (PA). Public
+// catalogue — no filter; fetch once and cache.
+func (s *ReferenceService) ListPaProviders() (*PaProviderList, error) {
+	var out PaProviderList
+	if err := s.client.get("/pa-providers", nil, &out); err != nil {
 		return nil, err
 	}
 	return &out, nil

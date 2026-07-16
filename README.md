@@ -271,6 +271,19 @@ sim, _ := client.Sandbox.SimulateStatus("inv_xxx", &facturino.SimulateStatusPara
 })
 ```
 
+### Reference & Health
+
+```go
+forms, _ := client.Reference.ListLegalForms(&facturino.ReferenceListParams{Search: "SAS"})
+providers, _ := client.Reference.ListPaProviders() // supported Plateformes Agréées (BYOPA)
+status, _ := client.Health.Check()                 // public liveness probe
+```
+
+> **Public token endpoints** — the recipient-facing portals (`/pay/:token`,
+> `/portal/:token`, `/quote-portal/:token`) are intentionally not exposed by the
+> SDK: they are opened by the end recipient through a hosted page, not called
+> with an API key.
+
 ## Pagination
 
 All list endpoints return iterators with automatic pagination.
