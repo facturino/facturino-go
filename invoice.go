@@ -160,6 +160,7 @@ type LineItem struct {
 	LineAmount      int    `json:"lineAmount"`
 	VATRate         int    `json:"vatRate"` // centièmes de pourcent
 	VATCode         string `json:"vatCode"`
+	VATexCode       string `json:"vatexCode,omitempty"` // specific VATEX code (BT-121), when set
 	VATAmount       int    `json:"vatAmount"`
 	LineTotal       int    `json:"lineTotal"`
 	Product         string `json:"product"`
@@ -167,10 +168,11 @@ type LineItem struct {
 
 // VATBreakdown is a VAT subtotal grouped by rate.
 type VATBreakdown struct {
-	Rate   int    `json:"rate"` // centièmes de pourcent
-	Code   string `json:"code"`
-	Base   int    `json:"base"` // integer centimes
-	Amount int    `json:"amount"`
+	Rate      int    `json:"rate"` // centièmes de pourcent
+	Code      string `json:"code"`
+	VATexCode string `json:"vatexCode,omitempty"`
+	Base      int    `json:"base"` // integer centimes
+	Amount    int    `json:"amount"`
 }
 
 // Totals is the financial summary of a document.
@@ -195,12 +197,15 @@ type LifecycleEntry struct {
 // ItemParams defines a line item. Quantity is a decimal string (e.g. "2.5").
 // UnitPrice in centimes, VATRate/DiscountPercent in centipercent.
 type ItemParams struct {
-	Description     string `json:"description"`
-	Quantity        string `json:"quantity"`
-	Unit            string `json:"unit"`
-	UnitPrice       int    `json:"unitPrice"`
-	VATRate         int    `json:"vatRate"`
-	VATCode         string `json:"vatCode"`
+	Description string `json:"description"`
+	Quantity    string `json:"quantity"`
+	Unit        string `json:"unit"`
+	UnitPrice   int    `json:"unitPrice"`
+	VATRate     int    `json:"vatRate"`
+	VATCode     string `json:"vatCode"`
+	// VATexCode is an optional specific VATEX exemption code (BT-121), e.g.
+	// "VATEX-FR-261", used when the basis differs from the VAT category default.
+	VATexCode       string `json:"vatexCode,omitempty"`
 	DiscountPercent int    `json:"discountPercent,omitempty"`
 	Product         string `json:"product,omitempty"`
 }
@@ -217,15 +222,20 @@ type BuyerParams struct {
 
 // InvoiceParams are the parameters for creating a draft invoice.
 type InvoiceParams struct {
-	Customer            string                 `json:"customerId"`
-	Type                string                 `json:"type,omitempty"`
-	Buyer               *BuyerParams           `json:"buyer"`
-	Items               []*ItemParams          `json:"lines"`
-	Dates               *InvoiceDatesParams    `json:"dates"`
-	Payment             *PaymentTermsParams    `json:"payment"`
-	PurchaseOrderNumber string                 `json:"purchaseOrderNumber,omitempty"`
-	Notes               string                 `json:"notes,omitempty"`
-	Metadata            map[string]interface{} `json:"metadata,omitempty"`
+	Customer            string              `json:"customerId"`
+	Type                string              `json:"type,omitempty"`
+	Buyer               *BuyerParams        `json:"buyer"`
+	Items               []*ItemParams       `json:"lines"`
+	Dates               *InvoiceDatesParams `json:"dates"`
+	Payment             *PaymentTermsParams `json:"payment"`
+	PurchaseOrderNumber string              `json:"purchaseOrderNumber,omitempty"`
+	Notes               string              `json:"notes,omitempty"`
+	// Deposits links deposit invoices (386) whose TTC is deducted from the
+	// amount due (BT-113, CGI art. 289). Max 20.
+	Deposits []*DepositParam `json:"deposits,omitempty"`
+	// Schedule is a payment schedule of 2 to 12 instalments summing to the total.
+	Schedule []*ScheduleParam       `json:"schedule,omitempty"`
+	Metadata map[string]interface{} `json:"metadata,omitempty"`
 
 	// AutoFinalize finalizes the invoice in the same call (assigns its number).
 	AutoFinalize bool `json:"autoFinalize,omitempty"`
@@ -240,6 +250,18 @@ type InvoiceParams struct {
 type AutoSendParams struct {
 	Email bool `json:"email,omitempty"`
 	PA    bool `json:"pa,omitempty"`
+}
+
+// DepositParam links a deposit invoice to a balance invoice.
+type DepositParam struct {
+	InvoiceID string `json:"invoiceId"`
+}
+
+// ScheduleParam is a payment-schedule instalment. Amount in integer centimes.
+type ScheduleParam struct {
+	Amount  int    `json:"amount"`
+	DueDate string `json:"dueDate"`
+	Label   string `json:"label,omitempty"`
 }
 
 // InvoiceDatesParams are date overrides for invoice creation.
@@ -271,6 +293,8 @@ type InvoiceUpdateParams struct {
 	// Notes is a pointer so that an empty string clears the notes instead of
 	// being dropped by omitempty. Leave nil to keep the current notes.
 	Notes    *string                `json:"notes,omitempty"`
+	Deposits []*DepositParam        `json:"deposits,omitempty"`
+	Schedule []*ScheduleParam       `json:"schedule,omitempty"`
 	Metadata map[string]interface{} `json:"metadata,omitempty"`
 }
 

@@ -49,6 +49,33 @@ func (s *PaymentService) Create(invoiceID string, params *PaymentParams) (*Payme
 	return &pay, nil
 }
 
+// PaymentCancelResult is returned when a payment is cancelled; the invoice is
+// re-settled from the reversal.
+type PaymentCancelResult struct {
+	ID     string `json:"id"`
+	Object string `json:"object"`
+	Status string `json:"status"`
+	// InvoiceStatus is the recomputed invoice status after the reversal.
+	InvoiceStatus string `json:"invoiceStatus"`
+	// AmountDue is the recomputed amount due, in integer centimes.
+	AmountDue int `json:"amountDue"`
+}
+
+// Cancel cancels a recorded payment. The payment is kept for the audit trail
+// (status "cancelled") and the invoice is re-settled from the reversal.
+// Rejected once the payment has been reported to the tax authority.
+func (s *PaymentService) Cancel(invoiceID, paymentID string) (*PaymentCancelResult, error) {
+	var res PaymentCancelResult
+	err := s.client.post(
+		fmt.Sprintf("/invoices/%s/payments/%s/cancel", invoiceID, paymentID),
+		nil, &res, &requestOption{},
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
 // List returns a paginated iterator over payments for the given invoice.
 func (s *PaymentService) List(invoiceID string, params *ListParams) *PaymentIterator {
 	path := fmt.Sprintf("/invoices/%s/payments", invoiceID)

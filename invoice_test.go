@@ -356,6 +356,30 @@ func TestPaymentCreate(t *testing.T) {
 	}
 }
 
+func TestPaymentCancel(t *testing.T) {
+	client, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			t.Errorf("Method = %q, want POST", r.Method)
+		}
+		if r.URL.Path != "/v1/invoices/inv_123/payments/pay_abc/cancel" {
+			t.Errorf("Path = %q, want /v1/invoices/inv_123/payments/pay_abc/cancel", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"id":"pay_abc","object":"payment","status":"cancelled","invoiceStatus":"partially_paid","amountDue":5000}`)
+	})
+
+	res, err := client.Payments.Cancel("inv_123", "pay_abc")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if res.Status != "cancelled" {
+		t.Errorf("Status = %q, want cancelled", res.Status)
+	}
+	if res.AmountDue != 5000 {
+		t.Errorf("AmountDue = %d, want 5000", res.AmountDue)
+	}
+}
+
 func TestCustomerCreateAndGet(t *testing.T) {
 	client, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

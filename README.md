@@ -29,10 +29,11 @@ func main() {
     client := facturino.New("fac_test_xxx")
 
     customer, err := client.Customers.Create(&facturino.CustomerParams{
-        Name:  "ACME Corp",
-        Type:  "company",
-        Email: "billing@acme.com",
-        SIRET: "12345678901234",
+        Name:    "ACME Corp",
+        Type:    "company",
+        Email:   "billing@acme.com",
+        SIRET:   "73282932000074",
+        Address: &facturino.Address{Line1: "10 rue de la Paix", PostalCode: "75002", City: "Paris", Country: "FR"},
     })
     if err != nil {
         log.Fatal(err)
@@ -157,15 +158,16 @@ for iter.Next() {
 
 ```go
 cus, _ := client.Customers.Create(&facturino.CustomerParams{
-    Name:  "ACME Corp",
-    Type:  "company",
-    SIRET: "12345678901234",
+    Name:    "ACME Corp",
+    Type:    "company",
+    SIRET:   "73282932000074",
+    Address: &facturino.Address{Line1: "10 rue de la Paix", PostalCode: "75002", City: "Paris", Country: "FR"},
 })
 
 // Lookup resolves company details from the INSEE Sirene registry
 // (not a stored customer): use the result to prefill CustomerParams.
 lookup, _ := client.Customers.Lookup(&facturino.CustomerLookupParams{
-    SIRET: "12345678901234",
+    SIRET: "73282932000074",
 })
 if lookup.Found {
     fmt.Println(lookup.Data.Name, lookup.Data.LegalForm.Sigle)
