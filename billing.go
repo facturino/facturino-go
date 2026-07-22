@@ -19,16 +19,24 @@ type BillingSubscription struct {
 	Created            string `json:"created,omitempty"`
 }
 
-// PlatformInvoice represents a billing invoice issued by Facturino to
-// the account.
+// PlatformInvoice represents a subscription invoice issued by Facturino
+// (INTEK CENTER) to the account.
 type PlatformInvoice struct {
-	Object  string `json:"object"`
-	ID      string `json:"id"`
-	Number  string `json:"number,omitempty"`
-	Amount  int    `json:"amount"`
-	Status  string `json:"status"`
-	PaidAt  string `json:"paidAt,omitempty"`
-	Created string `json:"created"`
+	Object   string                `json:"object"`
+	ID       string                `json:"id"`
+	Status   string                `json:"status"`
+	Number   string                `json:"number,omitempty"`
+	Totals   map[string]string     `json:"totals"`
+	Dates    map[string]string     `json:"dates"`
+	Items    []PlatformInvoiceItem `json:"items"`
+	Metadata map[string]any        `json:"metadata,omitempty"`
+	Created  string                `json:"created"`
+}
+
+// PlatformInvoiceItem is a single line of a platform invoice.
+type PlatformInvoiceItem struct {
+	Description string `json:"description"`
+	LineTotal   int    `json:"lineTotal"`
 }
 
 // PlatformInvoiceList is the paginated response for
@@ -42,8 +50,9 @@ type PlatformInvoiceList struct {
 // PlatformInvoicePDF is the short-lived signed-URL response for
 // GET /v1/billing/invoices/:id/pdf.
 type PlatformInvoicePDF struct {
+	Object    string `json:"object"`
 	URL       string `json:"url"`
-	ExpiresAt string `json:"expiresAt,omitempty"`
+	ExpiresIn int    `json:"expires_in"`
 }
 
 // BillingService reads the active subscription and lists / downloads
