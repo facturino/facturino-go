@@ -155,6 +155,40 @@ func (s *CreditNoteService) Send(id string) (*CreditNote, error) {
 	return &cn, nil
 }
 
+// CreditNoteRefundParams are the optional parameters for Refund. Amount is in
+// integer centimes and defaults to the full credit-note total when nil.
+type CreditNoteRefundParams struct {
+	Amount     *int   `json:"amount,omitempty"`
+	Method     string `json:"method,omitempty"`
+	RefundedAt string `json:"refundedAt,omitempty"`
+
+	IdempotencyKey string `json:"-"`
+}
+
+// CreditNoteRefund is the result of recording a credit-note refund: a negative
+// `refund` payment written on the linked invoice.
+type CreditNoteRefund struct {
+	ID           string `json:"id"`
+	Object       string `json:"object"`
+	CreditNoteID string `json:"creditNoteId"`
+	InvoiceID    string `json:"invoiceId"`
+	Amount       int    `json:"amount"`
+}
+
+// Refund records the disbursement of a finalized credit note back to the customer.
+func (s *CreditNoteService) Refund(id string, params *CreditNoteRefundParams) (*CreditNoteRefund, error) {
+	var resp CreditNoteRefund
+	opts := &requestOption{}
+	if params != nil && params.IdempotencyKey != "" {
+		opts.idempotencyKey = params.IdempotencyKey
+	}
+	err := s.client.post(fmt.Sprintf("/credit-notes/%s/refund", id), params, &resp, opts)
+	if err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
 // CreditNoteEmailParams contains optional overrides for the email send.
 type CreditNoteEmailParams struct {
 	RecipientEmail string `json:"recipientEmail,omitempty"`

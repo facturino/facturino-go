@@ -380,6 +380,31 @@ func TestPaymentCancel(t *testing.T) {
 	}
 }
 
+func TestCreditNoteRefund(t *testing.T) {
+	client, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			t.Errorf("Method = %q, want POST", r.Method)
+		}
+		if r.URL.Path != "/v1/credit-notes/crn_1/refund" {
+			t.Errorf("Path = %q, want /v1/credit-notes/crn_1/refund", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"id":"ref_1","object":"refund","creditNoteId":"crn_1","invoiceId":"inv_1","amount":12000}`)
+	})
+
+	amount := 12000
+	res, err := client.CreditNotes.Refund("crn_1", &CreditNoteRefundParams{Amount: &amount, Method: "transfer"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if res.Object != "refund" {
+		t.Errorf("Object = %q, want refund", res.Object)
+	}
+	if res.Amount != 12000 {
+		t.Errorf("Amount = %d, want 12000", res.Amount)
+	}
+}
+
 func TestCustomerCreateAndGet(t *testing.T) {
 	client, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
