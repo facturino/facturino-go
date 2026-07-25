@@ -16,7 +16,6 @@ const (
 type ListParams struct {
 	Limit          int    `json:"limit,omitempty"`
 	StartingAfter  string `json:"starting_after,omitempty"`
-	EndingBefore   string `json:"ending_before,omitempty"`
 	Status         string `json:"status,omitempty"`
 	IncludeDeleted bool   `json:"include_deleted,omitempty"`
 }
@@ -35,9 +34,6 @@ func (p *ListParams) toValues() url.Values {
 	}
 	if p.StartingAfter != "" {
 		v.Set("starting_after", p.StartingAfter)
-	}
-	if p.EndingBefore != "" {
-		v.Set("ending_before", p.EndingBefore)
 	}
 	if p.Status != "" {
 		v.Set("status", p.Status)

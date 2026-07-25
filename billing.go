@@ -74,8 +74,8 @@ func (s *BillingService) RetrieveSubscription() (*BillingSubscription, error) {
 }
 
 // ListInvoices returns the paginated list of platform invoices issued
-// to this account. Pass a ListParams with Limit / StartingAfter /
-// EndingBefore to iterate beyond the first page.
+// to this account. Pass a ListParams with Limit / StartingAfter to
+// iterate beyond the first page.
 func (s *BillingService) ListInvoices(params *ListParams) (*PlatformInvoiceList, error) {
 	var out PlatformInvoiceList
 	var q url.Values
