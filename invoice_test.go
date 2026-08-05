@@ -356,6 +356,33 @@ func TestPaymentCreate(t *testing.T) {
 	}
 }
 
+func TestPaymentCreatePaypal(t *testing.T) {
+	var sentMethod string
+	client, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		sentMethod, _ = body["method"].(string)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(201)
+		fmt.Fprint(w, `{"id":"pay_pp","object":"payment","amount":10000,"method":"paypal","paidAt":"2026-03-15T10:00:00Z"}`)
+	})
+
+	pay, err := client.Payments.Create("inv_123", &PaymentParams{
+		Amount: 10000,
+		Method: "paypal",
+		PaidAt: "2026-03-15T10:00:00Z",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if sentMethod != "paypal" {
+		t.Errorf("sent method = %q, want paypal", sentMethod)
+	}
+	if pay.Method != "paypal" {
+		t.Errorf("Method = %q, want paypal", pay.Method)
+	}
+}
+
 func TestPaymentCancel(t *testing.T) {
 	client, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
