@@ -96,11 +96,12 @@ func TestValidateRun(t *testing.T) {
 	})
 
 	res, err := client.Validate.Run(&InvoiceParams{
-		Customer: "cus_123",
-		Buyer:    &BuyerParams{CompanyName: "Acme", Address: &Address{Line1: "1 rue X", PostalCode: "75001", City: "Paris", Country: "FR"}},
-		Items:    []*ItemParams{{Description: "Item", Quantity: "1", UnitPrice: 1000, VATRate: 2000, VATCode: "S"}},
-		Dates:    &InvoiceDatesParams{Issued: "2026-01-15", Due: "2026-02-15"},
-		Payment:  &PaymentTermsParams{Terms: "Net 30", TermsDays: 30, Method: "transfer", LatePaymentRate: "10.00", CollectionFee: "40.00"},
+		Customer:      "cus_123",
+		Buyer:         &BuyerParams{CompanyName: "Acme", Address: &Address{Line1: "1 rue X", PostalCode: "75001", City: "Paris", Country: "FR"}},
+		TaxDecisionID: "taxdec_9c1f",
+		DecisionLines: []*DecisionLineParams{{TaxLineRef: "item", Unit: "unit"}},
+		Dates:         &InvoiceDatesParams{Issued: "2026-01-15", Due: "2026-02-15"},
+		Payment:       &PaymentTermsParams{Terms: "Net 30", TermsDays: 30, Method: "transfer", LatePaymentRate: "10.00", CollectionFee: "40.00"},
 	})
 	if err != nil {
 		t.Fatal(err)

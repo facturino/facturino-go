@@ -13,10 +13,30 @@ type CreditNote struct {
 
 	Customer         *CustomerRef `json:"customer"`
 	RelatedInvoiceID string       `json:"relatedInvoiceId"`
-	Status           string       `json:"status"`
-	CreditNoteType   string       `json:"creditNoteType"`
-	Number           string       `json:"number"`
-	Currency         string       `json:"currency"`
+	// Status is the summary projection of the three axes below.
+	Status string `json:"status"`
+	// DocumentStatus is the documentary axis.
+	DocumentStatus string `json:"documentStatus,omitempty"`
+	// TransmissionStatus is the transmission axis.
+	TransmissionStatus string `json:"transmissionStatus,omitempty"`
+	// TransmissionDetail is the DGFiP detail inside "transmitted" / "rejected".
+	TransmissionDetail string `json:"transmissionDetail,omitempty"`
+	// PaymentStatus is the collection axis — a credit note follows the refund,
+	// not the invoice.
+	PaymentStatus string `json:"paymentStatus,omitempty"`
+	// TaxSource says who determined this credit note's VAT: "facturino" or
+	// "integration", inherited from the credited invoice.
+	TaxSource string `json:"taxSource,omitempty"`
+	// OriginalInvoiceID names the invoice this credit note credits.
+	OriginalInvoiceID string `json:"originalInvoiceId,omitempty"`
+	// OriginalTaxDecisionID names the decision the credited invoice was backed
+	// by; the credit note inherits it rather than deciding again.
+	OriginalTaxDecisionID string `json:"originalTaxDecisionId,omitempty"`
+	// TaxSnapshot is the frozen fiscal position inherited from the invoice.
+	TaxSnapshot    map[string]interface{} `json:"taxSnapshot,omitempty"`
+	CreditNoteType string                 `json:"creditNoteType"`
+	Number         string                 `json:"number"`
+	Currency       string                 `json:"currency"`
 
 	ReasonCode string `json:"reasonCode"`
 	Reason     string `json:"reason,omitempty"`
@@ -65,21 +85,41 @@ type CreditNoteArchive struct {
 
 // CreditNoteParams are the parameters for creating a credit note.
 type CreditNoteParams struct {
-	Customer         string           `json:"customerId"`
-	RelatedInvoiceID string           `json:"relatedInvoiceId"`
-	CreditNoteType   string           `json:"creditNoteType"`
-	ReasonCode       string           `json:"reasonCode"`
-	Reason           string           `json:"reason,omitempty"`
-	Items            []*ItemParams    `json:"items"`
-	Dates            *CreditNoteDates `json:"dates"`
-	Notes            string           `json:"notes,omitempty"`
+	// Customer is derived from the credited invoice; it never needs stating.
+	Customer         string `json:"customerId,omitempty"`
+	RelatedInvoiceID string `json:"relatedInvoiceId"`
+	CreditNoteType   string `json:"creditNoteType"`
+	ReasonCode       string `json:"reasonCode"`
+	Reason           string `json:"reason,omitempty"`
+	// CreditedLines credits fractions of the original invoice's frozen lines.
+	// Required. The rate, category, VATEX code and legal mention are inherited
+	// from the invoice's snapshot, never restated — there is no way to state
+	// VAT on a credit note.
+	CreditedLines []*CreditedLineParams `json:"creditedLines"`
+	Dates         *CreditNoteDates      `json:"dates,omitempty"`
+	Notes         string                `json:"notes,omitempty"`
 
 	IdempotencyKey string `json:"-"`
 }
 
+// CreditedLineParams is one credited line of a decision-backed invoice.
+//
+// State EITHER Quantity or AmountTTC, never both: they are two ways of saying
+// how much of the line is credited, and stating both would state two different
+// amounts. Leave both empty to credit the line's whole remaining balance.
+type CreditedLineParams struct {
+	// TaxLineRef is the reference of the decided line being credited.
+	TaxLineRef string `json:"taxLineRef"`
+	// Quantity is a decimal string. Mutually exclusive with AmountTTC.
+	Quantity string `json:"quantity,omitempty"`
+	// AmountTTC is in integer centimes. Mutually exclusive with Quantity.
+	AmountTTC int `json:"amountTTC,omitempty"`
+}
+
 // CreditNoteUpdateParams are the parameters for updating a draft credit note.
 type CreditNoteUpdateParams struct {
-	Items []*ItemParams `json:"items,omitempty"`
+	// CreditedLines replaces the credited fractions on the draft.
+	CreditedLines []*CreditedLineParams `json:"creditedLines,omitempty"`
 	// ReasonCode is set only on create; the update endpoint rejects it.
 	Reason string `json:"reason,omitempty"`
 	Notes  string `json:"notes,omitempty"`

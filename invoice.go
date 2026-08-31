@@ -2,6 +2,7 @@ package facturino
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"strings"
@@ -9,13 +10,45 @@ import (
 
 // Invoice is a Facturino invoice.
 type Invoice struct {
-	ID       string `json:"id"`
-	Object   string `json:"object"`
-	Type     string `json:"type"`
-	Status   string `json:"status"`
-	Number   string `json:"number"`
-	Currency string `json:"currency"`
-	Livemode bool   `json:"livemode"`
+	ID     string `json:"id"`
+	Object string `json:"object"`
+	Type   string `json:"type"`
+	// Status is the summary projection of the three axes below. It stays
+	// populated and supported; prefer the axes when you need to tell
+	// transmission from collection.
+	Status string `json:"status"`
+	// DocumentStatus is the documentary axis: "draft", "finalized" or
+	// "cancelled".
+	DocumentStatus string `json:"documentStatus,omitempty"`
+	// TransmissionStatus is the transmission axis: "not_applicable", "pending",
+	// "sending", "deposited", "transmitted", "approved" or "rejected". A
+	// collection never moves it.
+	TransmissionStatus string `json:"transmissionStatus,omitempty"`
+	// TransmissionDetail is the DGFiP detail inside "transmitted" / "rejected":
+	// "available", "received", "suspended" or "refused".
+	TransmissionDetail string `json:"transmissionDetail,omitempty"`
+	// PaymentStatus is the collection axis: "unpaid", "partially_paid", "paid",
+	// "partially_refunded" or "refunded". A refund does not erase the
+	// collection that happened.
+	PaymentStatus string `json:"paymentStatus,omitempty"`
+	// TaxSource says who determined the VAT: "facturino" or "integration".
+	// Empty when the commercial draft is not decided yet (taxSource: null).
+	TaxSource string `json:"taxSource,omitempty"`
+	// TaxDecisionID names the decision backing this invoice, when it has one.
+	TaxDecisionID string `json:"taxDecisionId,omitempty"`
+	// TaxSnapshot is the frozen fiscal position copied from the decision.
+	TaxSnapshot map[string]interface{} `json:"taxSnapshot,omitempty"`
+	// CommercialDraft is the operation an UNDECIDED draft states — typically
+	// one produced by Quotes.Convert. Present only while TaxSource is empty; it
+	// disappears the moment the invoice is bound to a decision.
+	//
+	// Read its lines to build the decision that fiscalises this draft: the line
+	// references are assigned server-side at conversion, and the decision must
+	// state exactly the operation the draft carries.
+	CommercialDraft *CommercialDraft `json:"commercialDraft,omitempty"`
+	Number          string           `json:"number"`
+	Currency        string           `json:"currency"`
+	Livemode        bool             `json:"livemode"`
 
 	Customer *CustomerRef `json:"customer"`
 	Items    []*LineItem  `json:"items"`
@@ -222,18 +255,27 @@ type BuyerParams struct {
 
 // InvoiceParams are the parameters for creating a draft invoice.
 type InvoiceParams struct {
-	Customer            string              `json:"customerId"`
-	Type                string              `json:"type,omitempty"`
-	Buyer               *BuyerParams        `json:"buyer"`
-	Items               []*ItemParams       `json:"lines"`
-	Dates               *InvoiceDatesParams `json:"dates"`
-	Payment             *PaymentTermsParams `json:"payment"`
-	PurchaseOrderNumber string              `json:"purchaseOrderNumber,omitempty"`
-	Notes               string              `json:"notes,omitempty"`
-	// Deposits links deposit invoices (386) whose TTC is deducted from the
-	// amount due (BT-113, CGI art. 289). Max 20.
+	Customer string       `json:"customerId"`
+	Type     string       `json:"type,omitempty"`
+	Buyer    *BuyerParams `json:"buyer"`
+	// TaxDecisionID backs the invoice with an immutable tax decision.
+	// Required: every invoice is created from a decision, and the VAT comes
+	// from it — the invoice never restates a rate.
+	TaxDecisionID string `json:"taxDecisionId"`
+	// DecisionLines carries presentation only — unit and catalogue product. The
+	// rate, category, VATEX code and legal mention all come from the decision.
+	// Required, one entry per decided line.
+	DecisionLines       []*DecisionLineParams `json:"decisionLines"`
+	Dates               *InvoiceDatesParams   `json:"dates"`
+	Payment             *PaymentTermsParams   `json:"payment"`
+	PurchaseOrderNumber string                `json:"purchaseOrderNumber,omitempty"`
+	Notes               string                `json:"notes,omitempty"`
+	// Deposits links fully paid deposit invoices (386) whose TTC is deducted
+	// from this balance invoice (BT-113, CGI art. 289). Max 20. Settled
+	// server-side against the DECIDED amount due.
 	Deposits []*DepositParam `json:"deposits,omitempty"`
-	// Schedule is a payment schedule of 2 to 12 instalments summing to the total.
+	// Schedule is a payment schedule of 2 to 12 instalments. Validated
+	// server-side: they must distribute exactly the decided amount due.
 	Schedule []*ScheduleParam       `json:"schedule,omitempty"`
 	Metadata map[string]interface{} `json:"metadata,omitempty"`
 
@@ -244,6 +286,17 @@ type InvoiceParams struct {
 	AutoSend *AutoSendParams `json:"autoSend,omitempty"`
 
 	IdempotencyKey string `json:"-"`
+}
+
+// DecisionLineParams is a presentation-only line of a decision-backed document.
+//
+// It carries no VAT: the rate, the category, the VATEX code and the legal
+// mention all come from the decided line it references.
+type DecisionLineParams struct {
+	// TaxLineRef is the reference of the decided line this document line renders.
+	TaxLineRef string `json:"taxLineRef"`
+	Unit       string `json:"unit"`
+	Product    string `json:"product,omitempty"`
 }
 
 // AutoSendParams selects the one-shot delivery channels for invoice creation.
@@ -285,17 +338,18 @@ type PaymentTermsParams struct {
 	CollectionFee        string `json:"collectionFee"`
 }
 
-// InvoiceUpdateParams are the parameters for updating a draft.
+// InvoiceUpdateParams are the parameters for updating a draft's non-fiscal
+// fields. The commercial operation and its VAT belong to the decision, which
+// is immutable: to change the operation, take a new decision and create a new
+// draft.
 type InvoiceUpdateParams struct {
-	Items   []*ItemParams       `json:"lines,omitempty"`
 	Dates   *InvoiceDatesParams `json:"dates,omitempty"`
 	Payment *PaymentTermsParams `json:"payment,omitempty"`
 	// Notes is a pointer so that an empty string clears the notes instead of
 	// being dropped by omitempty. Leave nil to keep the current notes.
-	Notes    *string                `json:"notes,omitempty"`
-	Deposits []*DepositParam        `json:"deposits,omitempty"`
-	Schedule []*ScheduleParam       `json:"schedule,omitempty"`
-	Metadata map[string]interface{} `json:"metadata,omitempty"`
+	Notes               *string                `json:"notes,omitempty"`
+	PurchaseOrderNumber string                 `json:"purchaseOrderNumber,omitempty"`
+	Metadata            map[string]interface{} `json:"metadata,omitempty"`
 }
 
 // InvoiceStatusResponse is a lightweight status check.
@@ -360,8 +414,22 @@ type InvoiceService struct {
 	client *httpClient
 }
 
-// Create creates a new draft invoice.
+// Create creates a new draft invoice from an immutable tax decision.
+//
+// TaxDecisionID and DecisionLines are required and checked locally, before
+// any HTTP call: every invoice is created from a decision, and the invoice
+// never restates a rate. Deposits and Schedule travel alongside the decision;
+// both are settled server-side against the DECIDED amount due.
 func (s *InvoiceService) Create(params *InvoiceParams) (*Invoice, error) {
+	if params == nil {
+		return nil, errors.New("facturino: invoice params are required")
+	}
+	if params.TaxDecisionID == "" {
+		return nil, errors.New("facturino: TaxDecisionID is required; every invoice is created from an immutable tax decision (TaxDecisions.Create)")
+	}
+	if len(params.DecisionLines) == 0 {
+		return nil, errors.New("facturino: DecisionLines is required and non-empty; each entry references a decision line by TaxLineRef and completes the document-only details (unit, product)")
+	}
 	var inv Invoice
 	opts := &requestOption{}
 	if params.IdempotencyKey != "" {
@@ -433,6 +501,83 @@ func (s *InvoiceService) List(params *InvoiceListParams) *InvoiceIterator {
 		iter.extraParams = url.Values{"convertedFrom": {params.ConvertedFrom}}
 	}
 	return &InvoiceIterator{iter: iter}
+}
+
+// CommercialDraftLine is one line of a commercial draft: the operation as
+// stated, with NO VAT. UnitPrice is in integer cents, in the draft's price
+// mode; Quantity is a decimal string. RateCategory is the band the seller asks
+// for — the decision concludes the actual rate.
+type CommercialDraftLine struct {
+	// Reference is assigned server-side; the decision reuses it.
+	Reference      string               `json:"reference"`
+	Description    string               `json:"description"`
+	Quantity       string               `json:"quantity"`
+	Unit           string               `json:"unit"`
+	UnitPrice      int                  `json:"unitPrice"`
+	SupplyCategory string               `json:"supplyCategory"`
+	RateCategory   string               `json:"rateCategory"`
+	Discount       *TaxDecisionDiscount `json:"discount,omitempty"`
+	Product        string               `json:"product,omitempty"`
+}
+
+// CommercialDraft is the operation an undecided draft states. TotalCents is a
+// COMMERCIAL total: neither a decided net nor a decided gross amount, because
+// nothing has been decided yet.
+type CommercialDraft struct {
+	PriceMode  string                 `json:"priceMode"`
+	Lines      []*CommercialDraftLine `json:"lines"`
+	TotalCents int                    `json:"totalCents"`
+}
+
+// BindTaxDecisionParams binds a FINAL tax decision to a commercial draft that
+// already exists. It carries the decision and the presentation of its lines,
+// and nothing else: the draft already states the buyer, the dates and the
+// payment terms, and the decision states the whole fiscal content.
+type BindTaxDecisionParams struct {
+	// TaxDecisionID is the FINAL decision to freeze onto the draft.
+	TaxDecisionID string `json:"taxDecisionId"`
+	// DecisionLines carries presentation only — unit and catalogue product —
+	// one entry per decided line, matched by TaxLineRef.
+	DecisionLines []*DecisionLineParams `json:"decisionLines"`
+	// IdempotencyKey is sent as the Idempotency-Key header.
+	IdempotencyKey string `json:"-"`
+}
+
+// BindTaxDecision freezes a FINAL tax decision onto a commercial draft that
+// already exists — typically the one Quotes.Convert produced.
+//
+// It closes the quote cycle on ONE document:
+//
+//	converted, _ := client.Quotes.Convert(quoteID)
+//	decision, _ := client.TaxDecisions.Create(input)
+//	client.Invoices.BindTaxDecision(converted.InvoiceID, &facturino.BindTaxDecisionParams{
+//		TaxDecisionID: decision.ID,
+//		DecisionLines: []*facturino.DecisionLineParams{{TaxLineRef: "l1", Unit: "unit"}},
+//	})
+//	client.Invoices.Finalize(converted.InvoiceID)
+//
+// The invoice stays a DRAFT: binding freezes the VAT, Finalize issues it.
+// Idempotent on the decision — replaying the same call returns the same invoice.
+func (s *InvoiceService) BindTaxDecision(id string, params *BindTaxDecisionParams) (*Invoice, error) {
+	if params == nil {
+		return nil, errors.New("facturino: bind params are required")
+	}
+	if params.TaxDecisionID == "" {
+		return nil, errors.New("facturino: TaxDecisionID is required; a commercial draft is fiscalised by binding a FINAL tax decision to it")
+	}
+	if len(params.DecisionLines) == 0 {
+		return nil, errors.New("facturino: DecisionLines is required and non-empty; each entry references a decision line by TaxLineRef and completes the document-only details (unit, product)")
+	}
+	var inv Invoice
+	opts := &requestOption{}
+	if params.IdempotencyKey != "" {
+		opts.idempotencyKey = params.IdempotencyKey
+	}
+	err := s.client.post(fmt.Sprintf("/invoices/%s/bind-tax-decision", id), params, &inv, opts)
+	if err != nil {
+		return nil, err
+	}
+	return &inv, nil
 }
 
 // Finalize finalizes a draft invoice, assigning it a number.

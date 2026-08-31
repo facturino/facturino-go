@@ -19,8 +19,7 @@ type BillingSubscription struct {
 	Created            string `json:"created,omitempty"`
 }
 
-// PlatformInvoice represents a subscription invoice issued by Facturino
-// (INTEK CENTER) to the account.
+// PlatformInvoice represents a subscription invoice issued to this account.
 type PlatformInvoice struct {
 	Object   string                `json:"object"`
 	ID       string                `json:"id"`

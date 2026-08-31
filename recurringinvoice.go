@@ -56,6 +56,12 @@ type RecurringInvoiceParams struct {
 	// NextGenerationDate is when the first invoice is generated (required).
 	NextGenerationDate string `json:"nextGenerationDate"`
 
+	// TaxInputs is required: the fiscal inputs are re-decided at EVERY
+	// occurrence, on its own generation date. A recurrence never stores a
+	// decision — one taken today would apply this quarter's rules to next
+	// year's invoice.
+	TaxInputs *RecurringTaxInputsParams `json:"taxInputs,omitempty"`
+
 	TemplateInvoice *RecurringTemplateParams `json:"templateInvoice"`
 
 	AutoFinalize bool `json:"autoFinalize,omitempty"`
@@ -64,20 +70,45 @@ type RecurringInvoiceParams struct {
 	IdempotencyKey string `json:"-"`
 }
 
-// RecurringTemplateParams are the template parameters for recurring invoice creation.
+// RecurringTaxInputsParams are the inputs a per-occurrence decision needs.
+//
+// With TaxSource "facturino", no rate, category code, VATEX code or legal
+// mention is accepted: the engine decides at every occurrence. With
+// "integration", each line carries the supplied VAT (VatRate, VatCode, and
+// where the rate is zero a VatexCode and PlaceOfSupply), re-validated for
+// coherence at every occurrence.
+type RecurringTaxInputsParams struct {
+	// TaxSource is "facturino" or "integration".
+	TaxSource string `json:"taxSource"`
+	// PriceMode is "tax_exclusive" or "tax_inclusive".
+	PriceMode string                    `json:"priceMode"`
+	Lines     []*RecurringTaxLineParams `json:"lines"`
+}
+
+// RecurringTaxLineParams is one commercial line of a decision-backed
+// recurrence. It carries its own presentation because no decision is stored.
+type RecurringTaxLineParams struct {
+	TaxDecisionLineParams
+	Unit    string `json:"unit"`
+	Product string `json:"product,omitempty"`
+}
+
+// RecurringTemplateParams are the document-only template parameters for the
+// generated invoices (payment terms, notes); never VAT.
 type RecurringTemplateParams struct {
-	Items            []*ItemParams `json:"items"`
-	Notes            string        `json:"notes,omitempty"`
-	PaymentMethod    string        `json:"paymentMethod,omitempty"`
-	PaymentTermsDays int           `json:"paymentTermsDays,omitempty"`
+	Notes            string `json:"notes,omitempty"`
+	PaymentMethod    string `json:"paymentMethod,omitempty"`
+	PaymentTermsDays int    `json:"paymentTermsDays,omitempty"`
 }
 
 // RecurringInvoiceUpdateParams are the parameters for updating a recurring invoice.
 type RecurringInvoiceUpdateParams struct {
-	Frequency      string `json:"frequency,omitempty"`
-	CustomInterval int    `json:"customInterval,omitempty"`
-	CustomUnit     string `json:"customUnit,omitempty"`
-	EndDate        string `json:"endDate,omitempty"`
+	// TaxInputs replaces the fiscal inputs wholesale.
+	TaxInputs      *RecurringTaxInputsParams `json:"taxInputs,omitempty"`
+	Frequency      string                    `json:"frequency,omitempty"`
+	CustomInterval int                       `json:"customInterval,omitempty"`
+	CustomUnit     string                    `json:"customUnit,omitempty"`
+	EndDate        string                    `json:"endDate,omitempty"`
 
 	TemplateInvoice *RecurringTemplateParams `json:"templateInvoice,omitempty"`
 

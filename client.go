@@ -19,8 +19,8 @@ const (
 	defaultBaseURL    = "https://facturino.com/api"
 	defaultTimeout    = 30 * time.Second
 	apiVersion        = "v1"
-	apiDateVersion    = "2026-03-01"
-	sdkVersion        = "1.1.0"
+	apiDateVersion    = "2026-09-01"
+	sdkVersion        = "2.0.0"
 	defaultMaxRetries = 3
 )
 

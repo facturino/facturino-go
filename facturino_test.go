@@ -138,7 +138,8 @@ func TestIdempotencyKeyHeader(t *testing.T) {
 
 	_, err := client.Invoices.Create(&InvoiceParams{
 		Customer:       "cus_123",
-		Items:          []*ItemParams{{Description: "Test", Quantity: "1", UnitPrice: 10000, VATRate: 2000}},
+		TaxDecisionID:  "taxdec_9c1f",
+		DecisionLines:  []*DecisionLineParams{{TaxLineRef: "l1", Unit: "unit"}},
 		IdempotencyKey: "idem_test_123",
 	})
 	if err != nil {
@@ -495,11 +496,10 @@ func TestRequestBodySerialization(t *testing.T) {
 	})
 
 	_, err := client.Invoices.Create(&InvoiceParams{
-		Customer: "cus_abc",
-		Items: []*ItemParams{
-			{Description: "Service", Quantity: "2", UnitPrice: 5000, VATRate: 2000},
-		},
-		Notes: "test note",
+		Customer:      "cus_abc",
+		TaxDecisionID: "taxdec_9c1f",
+		DecisionLines: []*DecisionLineParams{{TaxLineRef: "service", Unit: "unit"}},
+		Notes:         "test note",
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -511,7 +511,7 @@ func TestRequestBodySerialization(t *testing.T) {
 	if receivedBody["notes"] != "test note" {
 		t.Errorf("notes = %v, want %q", receivedBody["notes"], "test note")
 	}
-	lines, ok := receivedBody["lines"].([]interface{})
+	lines, ok := receivedBody["decisionLines"].([]interface{})
 	if !ok || len(lines) != 1 {
 		t.Fatalf("lines should have 1 item, got %v", receivedBody["lines"])
 	}

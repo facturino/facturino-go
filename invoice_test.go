@@ -34,10 +34,9 @@ func TestInvoiceCreate(t *testing.T) {
 	})
 
 	inv, err := client.Invoices.Create(&InvoiceParams{
-		Customer: "cus_xyz",
-		Items: []*ItemParams{
-			{Description: "Consulting", Quantity: "1", UnitPrice: 10000, VATRate: 2000},
-		},
+		Customer:      "cus_xyz",
+		TaxDecisionID: "taxdec_9c1f",
+		DecisionLines: []*DecisionLineParams{{TaxLineRef: "consulting", Unit: "hour"}},
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -150,6 +149,61 @@ func TestInvoiceUpdate(t *testing.T) {
 	}
 	if inv.Notes != "Updated notes" {
 		t.Errorf("Notes = %q, want %q", inv.Notes, "Updated notes")
+	}
+}
+
+func TestInvoiceBindTaxDecision(t *testing.T) {
+	var body map[string]any
+	client, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			t.Errorf("Method = %q, want POST", r.Method)
+		}
+		if r.URL.Path != "/v1/invoices/inv_converted/bind-tax-decision" {
+			t.Errorf("Path = %q, want /v1/invoices/inv_converted/bind-tax-decision", r.URL.Path)
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatalf("decoding body: %v", err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"id":"inv_converted","object":"invoice","status":"draft","taxSource":"facturino","taxDecisionId":"taxdec_1"}`)
+	})
+
+	inv, err := client.Invoices.BindTaxDecision("inv_converted", &BindTaxDecisionParams{
+		TaxDecisionID: "taxdec_1",
+		DecisionLines: []*DecisionLineParams{{TaxLineRef: "l1", Unit: "unit"}},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if body["taxDecisionId"] != "taxdec_1" {
+		t.Errorf("taxDecisionId = %v, want taxdec_1", body["taxDecisionId"])
+	}
+	if inv.TaxDecisionID != "taxdec_1" {
+		t.Errorf("TaxDecisionID = %q, want taxdec_1", inv.TaxDecisionID)
+	}
+	// Binding freezes the VAT; the invoice is issued by Finalize.
+	if inv.Status != "draft" {
+		t.Errorf("Status = %q, want draft", inv.Status)
+	}
+}
+
+func TestInvoiceBindTaxDecisionRefusesLocally(t *testing.T) {
+	client, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) {
+		t.Errorf("no request must be sent, got %s %s", r.Method, r.URL.Path)
+	})
+
+	if _, err := client.Invoices.BindTaxDecision("inv_converted", nil); err == nil {
+		t.Error("want an error for nil params")
+	}
+	if _, err := client.Invoices.BindTaxDecision("inv_converted", &BindTaxDecisionParams{
+		DecisionLines: []*DecisionLineParams{{TaxLineRef: "l1", Unit: "unit"}},
+	}); err == nil {
+		t.Error("want an error when TaxDecisionID is missing")
+	}
+	if _, err := client.Invoices.BindTaxDecision("inv_converted", &BindTaxDecisionParams{
+		TaxDecisionID: "taxdec_1",
+	}); err == nil {
+		t.Error("want an error when DecisionLines is empty")
 	}
 }
 
