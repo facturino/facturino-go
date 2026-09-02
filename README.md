@@ -8,7 +8,7 @@ Go client library for the [Facturino](https://facturino.com) API — developer-f
 ## Installation
 
 ```bash
-go get github.com/facturino/facturino-go/v2
+go get github.com/facturino/facturino-go/v2@v2.1.0
 ```
 
 Requires Go 1.21+. No external dependencies.
@@ -198,6 +198,7 @@ Stripe carries it in `metadata` (`facturino_tax_decision_id`), PayPal in
 | `InvoiceChannel` | `einvoicing` or `none` — whether the invoice travels the network. |
 | `TransactionReporting` | `ereporting`, `none` or `outside_scope`. |
 | `PaymentReporting` | `fr212`, `ereporting` or `none`. |
+| `SettledObligations` | The axes French law settles DESPITE a non-final decision. `nil` when final — the three axes above are then the settled ones. Each axis inside is `nil` when it depends on the treatment that could not be concluded. It authorises nothing. |
 | `ForeignTaxReviewRequired` | A foreign tax may apply; review it outside Facturino. |
 | `Vies` | VIES status only (`valid`, `invalid`, `unavailable`, `invalid_format`). |
 | `Issues` | What is missing, when the decision is not final. |
@@ -286,6 +287,269 @@ invoice, err := client.Invoices.Create(&facturino.InvoiceParams{
     Payment:       payment,
 })
 ```
+
+### What this source is not
+
+`VatRate`, `VatCode` and `VatexCode` describe **French VAT**. The contract has no
+local-tax jurisdiction, no local tax scheme and no withholding, so this source is
+not a way to pass one through.
+
+Where a local tax of a French overseas collectivity or the TAAF
+(Saint-Pierre-et-Miquelon, Saint-Barthélemy, Saint-Martin, French Polynesia, New
+Caledonia, Wallis-and-Futuna, TAAF) can change what you invoice — or what you
+actually collect — the decision is **not final under either source**, with the
+same issue code and no amount:
+
+| Issue code | When |
+|---|---|
+| `com_taaf_local_tax_not_determined` | Non-taxable buyer, operation located in the collectivity (electronically supplied service, CGI art. 259 D). |
+| `com_taaf_local_regime_not_sourced` | Taxable buyer, but no official act of the collectivity states who bears its tax. |
+| `com_taaf_payment_withholding_not_modelled` | French Polynesia: the client withholds part of the payment at source. |
+| `seller_com_taaf_local_tax_not_determined` | The seller itself is established in one of the seven. |
+
+The one sourced exception stays final under both sources: a B2B service located
+in **New Caledonia** supplied by a seller **not established in New Caledonia**,
+where art. Lp. 507-1 makes the taxable customer account for the taxe générale sur
+la consommation itself. That article reaches only a supplier established outside
+the territory. A seller established in New Caledonia is the ordinary collector of
+the taxe générale sur la consommation on its own sales, at a rate this contract
+does not carry, so its decision is not final either
+(`seller_com_taaf_local_tax_not_determined`).
+
+Because of this, `PlaceOfSupply` is **required** on every line as soon as the
+buyer is established in one of the seven — the place of the operation is what
+says whether the local tax is at stake, and it is never assumed
+(`422 integration_vat_incoherent` otherwise). A place located in France (goods
+that never leave the territory, a general B2C service) keeps the decision final
+as anywhere else.
+
+## B2C sales to consumers in other member states
+
+An **electronically supplied service** to a consumer established in another
+member state (Directive 2006/112/EC art. 58) and an **intra-EU distance sale** of
+goods (art. 33(a)) follow one common regime. A **general** B2C service does not:
+it stays taxed where the supplier is established (art. 45), and nothing below
+concerns it.
+
+Four questions are answered separately, in this order. Collapsing any two of them
+produces a wrong rate:
+
+1. is the operation covered by a destination rule;
+2. does the common **EUR 10,000** threshold still allow taxation at origin
+   (art. 59c(1));
+3. did the seller **opt** for taxation at destination (art. 59c(3));
+4. how is the tax due at destination **declared** — Union one-stop shop, or a
+   local VAT registration in that member state?
+
+The one-stop shop answers the **last** of the four: it is a way of declaring and
+paying a tax, not a rule of place. Not registering never restores the seller's
+own national VAT — it leaves the decision without an amount.
+
+That does not make the questions watertight in fact. For a **French** seller,
+registering for the Union scheme is how the option of art. 59c(3) is exercised:
+an **active** registration therefore settles the place at destination on its own,
+and the threshold has nothing left to decide (`basis: "oss_union_registration"`,
+`threshold: null`). The registration is dated — one opened in October decides
+nothing for a September sale, and one that ended decides nothing any more. It is
+sourced for France only: the way the option is exercised is fixed by the member
+state where it is exercised, so a seller established elsewhere keeps the ordinary
+threshold path and states its option explicitly.
+
+The threshold is an **inclusive** cap of `1000000` centimes excluding VAT, open
+only to a seller established in a **single** member state; the operation that
+carries the running total past it is itself taxed at destination.
+
+That running total lives in an **annual ledger** — `/v1/eu-threshold-ledgers`,
+one per company, per mode and per calendar year — and NOT on the fiscal profile.
+A profile revision is an immutable rule that decisions freeze; a turnover total
+moves with every sale and gets corrected, so the two are kept apart. Facturino
+keeps the register of the operations it receives; the sales made on your other
+channels must be brought in by an adjustment, or by the opening declaration:
+
+- **opening a year** declares four figures — the previous year's total and the
+  total already made this year, each with its *services* part (see the two
+  counters below) — plus the coverage mode: `facturino_only` (every covered sale
+  goes through Facturino) or `mixed_channels`;
+- **an adjustment** adds the turnover of another channel and moves forward the
+  day those channels are declared complete through. Under `mixed_channels` a
+  decision is served only up to that day.
+
+**Two counters, strictly apart — and independent.** The same movements feed two
+thresholds that do not measure the same thing: the common EUR 10,000 threshold
+above, and the EUR 100,000 threshold of Reg. 282/2011 art. 24b that governs how
+many items of location evidence are required. The second counts only telecom,
+broadcasting and electronically supplied services, **domestic ones included**;
+the first counts only **cross-border** supplies. A distance sale of goods raises
+the first and never the second — and a domestic electronic service raises the
+second and never the first.
+
+Neither bounds the other, in either direction: a publisher selling mostly at home
+legitimately declares far more on the evidence counter than on the common one.
+That is why every figure comes in a pair (`amount` / `evidenceAmount`,
+`acquiredMin` / `acquiredEvidenceMin`, …) rather than as a total and a share of
+it, and why the single-evidence relaxation is **computed by the engine** on that
+second counter rather than declared by the seller.
+
+**Acquired and reserved are published apart, and never summed.** `acquiredMin`
+is what the year has certainly made; `reservedMin` is the slices held right now
+by operations still being decided. A held slice may still disappear, and one
+combined "total" would hide exactly that.
+
+Nothing is assumed: no year starts at zero on its own, and no sale made elsewhere
+is presumed absent. A decision reserves its slice of the total in a transaction
+and consumes it with the decision itself, so two concurrent operations never read
+the same figure as certain and a replay counts nothing twice. A verdict is frozen
+only when it holds at **both** bounds — with every concurrent slice counted and
+with none of them — which is what makes an abandoned operation simply disappear
+instead of staying in the total as turnover that never existed.
+
+**Giving an amount back is a qualified correction, never a negative
+adjustment.** Directive 2006/112/EC art. 90(1) reduces the taxable amount of a
+supply on cancellation, refusal or a price reduction after the supply, and the
+thresholds count the VALUE of the supplies — so a correction names the movement
+it corrects, its qualification, the resource it rests on and its evidence.
+
+A movement gives back what it brought in **once**, whatever the number of
+corrections: the ledger keeps each movement's balance inside the same
+transaction, and every entry publishes its `remainingMin`. `correctsEntryId` is
+restricted to the ids the ledger itself mints — it reaches a document path, and
+free text must not.
+
+What cannot be qualified that way is not subtracted at all: the ledger goes
+**under review** and stops deciding, rather than freeze verdicts on a total
+nobody stands behind. A review is settled by **reconciliation**, never by a
+comment: you state the version you checked and the two acquired totals you
+verified, and only an exact agreement reopens the ledger.
+
+**A decision is never frozen without its slice.** If the slice it held has
+disappeared when the decision is about to be written, the transaction is
+abandoned — no decision, no audit entry, no settled claim
+(`409 eu_threshold_reservation_lost`) — and the ledger goes under review on a
+path of its own, so the review survives that abandonment. Freezing a decision the
+running total does not carry would leave the sale inside a decision and outside
+the year the next operation reads.
+
+Movements are paginated with a cursor (`limit`, `starting_after`): the ledger
+keeps them all, a page shows some.
+
+| Issue code | When |
+| --- | --- |
+| `eu_threshold_state_missing` | No ledger is open for the year of the operation. Open it: nothing is assumed to be zero. |
+| `eu_threshold_external_coverage_incomplete` | Other channels exist and are not declared complete through the operation date. Record an adjustment — even a zero one, which simply states that nothing happened. |
+| `eu_threshold_backdated_operation` | The operation predates one already counted, and decisions were frozen on that running total. It is refused rather than silently recomputed. |
+| `eu_threshold_concurrent_decision_pending` | Other operations of the company are being decided at this very moment, and the cap falls between "all of them confirmed" and "all abandoned". Nothing is frozen on that: decide again once they conclude. |
+| `eu_threshold_review_required` | The ledger is under review — its running total is known to be wrong, and no verdict rests on it until the review is settled. |
+| `location_evidence_relief_undetermined` | One third-party item of evidence, and the art. 24b relaxation could not be established: open the year's ledger and declare the services figures, or supply a second item. |
+| `eu_threshold_reservation_lost` | The slice this decision held is gone. The decision is refused rather than frozen without it, and the ledger goes under review. |
+| `destination_threshold_operation_value_missing` | A line value cannot be sized, so no slice of the total can be taken for it. |
+| `destination_threshold_price_mode_ambiguous` | Tax-inclusive price: the VAT-exclusive value depends on the rate the threshold has to decide, and the bounds fall on both sides of the cap. |
+| `destination_option_period_invalid` | The option is declared over less than its minimum binding period. |
+| `destination_option_scope_not_sourced` | Seller established outside France: the binding period is fixed by the member state where the option is exercised, and only the French one is sourced here. |
+| `destination_establishment_in_member_state` | The seller declares an establishment in the destination member state: which establishment supplies then decides both the place and the mechanism, and no fact of the contract names it. A local VAT registration alone is not an establishment. |
+| `destination_regional_scope_undetermined` | The member state publishes regional standard rates and the address places none of them — state the customer's postal code. |
+| `destination_mechanism_missing` | Destination taxation is due with neither the Union scheme nor a local registration valid for that state on that date. |
+| `franchise_destination_taxation_not_modelled` | Seller under the French small-enterprise exemption whose operation is taxed by another member state. |
+
+Rates come from a **local, dated, versioned registry**: no network call during a
+decision, and a decision replayed years later reproduces the same rate. A rate
+change is a new period, never a rewrite. Only the **standard** rate of the 27
+member states is tabulated — the scope of the reduced rates follows a national
+classification this contract does not hold, and an ordinary electronically
+supplied service is never granted the rate an electronic publication may benefit
+from (`destination_rate_band_not_available`). An effect date before the registry
+answers `destination_rate_not_sourced_for_date`.
+
+A **region publishing its own standard rate** never blocks a whole member state.
+What governs the region decides the answer:
+
+- **the rate follows the place of the operation.** The region is then a territory
+  of its own and the address decides: Portugal mainland 23%, Madeira 22%, Azores
+  16% (CIVA art. 18, CTT postal ranges). Only an address placing no region at all
+  is refused — `destination_regional_scope_undetermined`, naming the missing fact
+  rather than falling back on the mainland rate;
+- **the rate is reserved to operations carried out in the zone by a supplier
+  established there.** A supplier at distance does not acquire it from the
+  consumer's address, so the national rate is the final answer — and no postal
+  cartography of the zone is needed to say so: Austrian Jungholz and
+  Kleinwalsertal (§ 10(4) UStG — 20%, not 19%), and the Greek island regime FOR
+  SERVICES, which AADE reserves to a supplier established on the island for an
+  operation performed there. An electronically supplied service from France is
+  therefore taxed at 24% in Greece, in Athens and in Kalymnos alike;
+- **the rate follows the destination and the zone is not cartographied here.**
+  Neither the regional rate nor the national one can be asserted, so the
+  operation is refused: `destination_regional_regime_not_sourced`, non-final and
+  without an amount. This is Greece FOR GOODS: since 2026-01-01 the islands of
+  fewer than 20,000 inhabitants apply a reduced standard rate to the goods
+  delivered there, intra-community acquisitions included, and the list of those
+  islands is not cartographied by postal code here. An intra-EU distance sale of
+  goods to Greece is therefore refused — in Athens as in Kalymnos — and never
+  taxed at 24% by default. The answer is given per FAMILY of operation: the same
+  member state can be settled for services and left open for goods.
+
+### The annual ledger
+
+```go
+// Open the year — nothing starts at zero on its own.
+_, _ = client.EuThresholdLedgers.Open(&facturino.OpenEuThresholdLedgerParams{
+    Year:                        "2026",
+    PreviousYearAmount:          250000, // centimes, VAT excluded
+    CurrentYearOpening:          100000,
+    CoverageMode:                "mixed_channels",
+    ExternalCompleteThroughDate: "2026-01-01",
+})
+
+// Bring in what was sold elsewhere. Append-only, idempotent on Reference.
+_, _ = client.EuThresholdLedgers.Adjust("2026", &facturino.EuThresholdAdjustmentParams{
+    Reference:                   "marketplace-2026-08",
+    Amount:                      40000,
+    ExternalCompleteThroughDate: "2026-09-15",
+    Reason:                      "Marketplace sales, August",
+})
+
+ledger, _ := client.EuThresholdLedgers.Get("2026")
+_ = ledger.CumulativeMin // total already acquired, in centimes
+_ = ledger.RemainingMin  // what is left before the cap
+```
+
+### The same rule under `taxSource: 'integration'`
+
+An integration that concludes its own VAT does not get a different territoriality.
+The `integration` source traverses the same coverage, the same threshold, the same
+option, the same evidence and the same declarative mechanism; what differs is the
+outcome. Where `facturino` **produces** the rate, `integration` **compares** the
+one you supply to the legal result:
+
+- equal — decision `final`;
+- a category no B2C supply taxed at destination can carry (`AE`, `K`, `G`, `O`),
+  or a `placeOfSupply` the rule contradicts — `422 integration_vat_incoherent`;
+- a rate neither the destination **standard** rate nor the published bands of the
+  seller's own territory confirm — non-final, with
+  `eu_b2c_rate_supplied_mismatch`. Facturino holds only the standard rate of
+  another member state, and only the bands it publishes for a French territory,
+  so it can neither confirm a reduced rate nor correct yours. At origin that
+  refusal asserts NO foreign tax: the operation is taxed in France;
+- a rule that could not conclude — blocked exactly as under `facturino`, with
+  the same meaning of `pending_verification` and `unsupported`.
+
+The confrontation reaches BOTH places the rule can settle, and the territorial
+frontier is shared too: a seller established outside the French VAT territory, or
+a buyer sitting in a territory excluded from the EU VAT territory, raises under
+`integration` exactly the obstacle it raises under `facturino`.
+
+Because of this, `goodsMovement` is **required** on a goods line as soon as the
+buyer is a consumer of another member state: that movement decides whether the
+distance-sale rule applies, and it is never assumed.
+
+### What the decision freezes
+
+`TaxDecision.EuB2cDestination` carries what the rule concluded, as data rather
+than as a sentence — the verdict and its basis, the threshold figures it was
+decided on, the declarative mechanism, and the rate entry with its registry
+version, its source, its verification date, its period and its region. It is
+present as soon as the rule covers a line — including on a decision that is NOT
+final, where it states exactly what is missing — and `nil` on every operation
+the rule does not reach.
+
 
 ## Amounts and Rates
 

@@ -77,6 +77,23 @@ type TaxDecision struct {
 	// PaymentReporting is "fr212", "ereporting" or "none".
 	PaymentReporting *string `json:"paymentReporting"`
 
+	// SettledObligations carries the axes French law settles DESPITE a
+	// non-final decision. It is nil when Status is "final": the three axes
+	// above are then the settled ones and nothing duplicates them. It
+	// authorises nothing — a non-final decision is not invoiceable, never
+	// reaches a certified platform and never opens a payment.
+	SettledObligations *TaxDecisionSettledObligations `json:"settledObligations"`
+
+	// EuB2cDestination carries what the EU B2C destination rule concluded,
+	// frozen as DATA: the verdict and its basis, the threshold figures it was
+	// decided on, the declarative mechanism and the rate entry with its
+	// registry version, its source, its verification date, its period and its
+	// region. A reference string cannot be audited years later; this can. It is
+	// nil on every operation the rule does not reach, and present as soon as it
+	// covers a line — including on a decision that is NOT final, where it says
+	// exactly what is missing.
+	EuB2cDestination *TaxDecisionEuB2cDestination `json:"euB2cDestination"`
+
 	// ForeignTaxReviewRequired reports that a foreign tax may apply. Facturino
 	// decides French VAT and the matching French obligations; this case must be
 	// reviewed outside Facturino.
@@ -189,6 +206,162 @@ type TaxDecisionIssue struct {
 	Message string `json:"message,omitempty"`
 }
 
+// TaxDecisionEuB2cDestination is what the EU B2C destination rule concluded.
+type TaxDecisionEuB2cDestination struct {
+	// CoveredLineIDs names the lines the rule covers.
+	CoveredLineIDs []string `json:"coveredLineIds"`
+	// RuleKinds holds "tbe_services" and/or "intra_eu_distance_sale".
+	RuleKinds []string `json:"ruleKinds"`
+	// DestinationMemberState is the consumer's member state, ISO 3166-1 alpha-2.
+	DestinationMemberState string `json:"destinationMemberState"`
+	// DestinationTerritoryID is the consumer's canonical territory, region
+	// included where the member state publishes one ("PT-MA"…).
+	DestinationTerritoryID string `json:"destinationTerritoryId"`
+	// Place is "origin" or "destination"; nil while the rule did not settle it.
+	Place *string `json:"place"`
+	// Basis is what settled the place: "multi_member_state_establishment",
+	// "destination_option", "oss_union_registration", "threshold_exceeded" or
+	// "below_threshold".
+	//
+	// "oss_union_registration": the seller holds an ACTIVE Union one-stop-shop
+	// registration. For a French seller, registering IS how the option of
+	// art. 59c(3) is exercised, so the threshold has nothing left to decide and
+	// Threshold stays nil, exactly as on an explicit option. Sourced for France
+	// only: the way the option is exercised is fixed by the member state where
+	// it is exercised.
+	Basis     *string `json:"basis"`
+	Reference string  `json:"reference"`
+	Detail    string  `json:"detail"`
+
+	Threshold *TaxDecisionThresholdTrace       `json:"threshold"`
+	Option    *TaxDecisionDestinationOption    `json:"option"`
+	Mechanism *TaxDecisionDestinationMechanism `json:"mechanism"`
+	Rate      *TaxDecisionDestinationRate      `json:"rate"`
+	// EvidenceRelief is how the art. 24b relaxation was settled; nil when the
+	// location-evidence rule did not apply.
+	EvidenceRelief *TaxDecisionEvidenceRelief `json:"evidenceRelief"`
+}
+
+// TaxDecisionThresholdTrace is the slice of the ANNUAL LEDGER this decision
+// took, frozen with it.
+//
+// The running total is not a photograph left on the fiscal profile: it is a
+// transactional ledger per company, per mode and per year, and the decision
+// freezes which ledger, at which version, and at which position in the total
+// order of movements it occupied. Under a tax-inclusive price the operation's
+// VAT-exclusive value depends on the rate the threshold has to decide, so it is
+// an interval; under a tax-exclusive price both bounds coincide.
+type TaxDecisionThresholdTrace struct {
+	// DecidedOn is "previous_year" or "ledger_cumulative". On "previous_year"
+	// the previous calendar year closes the question on its own.
+	DecidedOn string `json:"decidedOn"`
+	// CapCents is the cap of art. 59c(1), in integer centimes.
+	CapCents int `json:"capCents"`
+	// StateID names the annual ledger ("2026_live", "2026_test").
+	StateID string `json:"stateId"`
+	Year    string `json:"year"`
+	// StateVersion is the ledger version the slice was taken at.
+	StateVersion int `json:"stateVersion"`
+	// Sequence is the position in the ledger's total order of movements.
+	Sequence int `json:"sequence"`
+	// ReservationID is the decision's durable idempotency claim.
+	ReservationID string `json:"reservationId"`
+	// CoverageMode is "facturino_only" or "mixed_channels".
+	CoverageMode            string `json:"coverageMode"`
+	PreviousYearAmountCents int    `json:"previousYearAmountCents"`
+	CurrentYearOpeningCents int    `json:"currentYearOpeningCents"`
+	OpeningDeclaredAt       string `json:"openingDeclaredAt"`
+	// ExternalCompleteThroughDate is the day the channels other than Facturino
+	// are declared complete through.
+	ExternalCompleteThroughDate string `json:"externalCompleteThroughDate"`
+	AdjustmentTotalCents        int    `json:"adjustmentTotalCents"`
+	AdjustmentCount             int    `json:"adjustmentCount"`
+	// CumulativeBeforeMinCents is what CERTAINLY precedes the operation:
+	// settled movements only. CumulativeBeforeMaxCents adds every slice held by
+	// an operation decided at the same moment — the gap between the two IS that
+	// concurrency, and a verdict is frozen only when it holds at both bounds.
+	CumulativeBeforeMinCents int `json:"cumulativeBeforeMinCents"`
+	CumulativeBeforeMaxCents int `json:"cumulativeBeforeMaxCents"`
+	// PendingPredecessorCount is how many concurrent operations the upper bound
+	// accounts for.
+	PendingPredecessorCount int    `json:"pendingPredecessorCount"`
+	OperationValueMinCents  int    `json:"operationValueMinCents"`
+	OperationValueMaxCents      int    `json:"operationValueMaxCents"`
+	CumulativeAfterMinCents     int    `json:"cumulativeAfterMinCents"`
+	CumulativeAfterMaxCents     int    `json:"cumulativeAfterMaxCents"`
+}
+
+// TaxDecisionDestinationOption is the option period, when it settled the place.
+type TaxDecisionDestinationOption struct {
+	EffectiveFrom string  `json:"effectiveFrom"`
+	EffectiveTo   *string `json:"effectiveTo"`
+}
+
+// TaxDecisionDestinationMechanism says how the tax due at destination is
+// declared. It never decides a place of taxation.
+// The registration is DATED: a one-stop shop opened in October does not
+// declare a September sale.
+type TaxDecisionDestinationMechanism struct {
+	// Kind is "oss_union" or "local_registration".
+	Kind        string `json:"kind"`
+	MemberState string `json:"memberState"`
+	Reference   string `json:"reference"`
+	// MemberStateOfIdentification is the state the scheme is filed in; nil for
+	// a local registration.
+	MemberStateOfIdentification *string `json:"memberStateOfIdentification"`
+	EffectiveFrom               string  `json:"effectiveFrom"`
+	EffectiveTo                 *string `json:"effectiveTo"`
+}
+
+// TaxDecisionEvidenceRelief is how the art. 24b single-evidence relaxation was
+// settled, with the figures it rested on.
+//
+// It is COMPUTED by the engine on the ledger's EUR 100,000 counter — the one
+// that never counts a distance sale of goods — and never declared by the
+// seller. "undeterminable" is a first-class answer: two items of evidence are
+// then required, and the issue says which fact is missing.
+type TaxDecisionEvidenceRelief struct {
+	// Status is "available", "unavailable" or "undeterminable".
+	Status string `json:"status"`
+	// CapCents is the cap of art. 24b, 2nd subparagraph (10,000,000).
+	CapCents                int     `json:"capCents"`
+	StateID                 *string `json:"stateId"`
+	Year                    *string `json:"year"`
+	PreviousYearAmountCents *int    `json:"previousYearAmountCents"`
+	CumulativeAfterMinCents *int    `json:"cumulativeAfterMinCents"`
+	CumulativeAfterMaxCents *int    `json:"cumulativeAfterMaxCents"`
+	// UndeterminedCode is "ledger_not_consulted", "ledger_unavailable" or
+	// "amount_interval_straddles_cap".
+	UndeterminedCode *string `json:"undeterminedCode"`
+}
+
+// TaxDecisionDestinationRate is the rate entry the decision was taken under,
+// with everything that justifies it.
+type TaxDecisionDestinationRate struct {
+	RegistryVersion string `json:"registryVersion"`
+	MemberState     string `json:"memberState"`
+	TerritoryID     string `json:"territoryId"`
+	// RegionID names the region when the rate is a regional one.
+	RegionID     *string `json:"regionId"`
+	Centipercent int     `json:"centipercent"`
+	ValidFrom    string  `json:"validFrom"`
+	ValidTo      *string `json:"validTo"`
+	Source       string  `json:"source"`
+	VerifiedAt   string  `json:"verifiedAt"`
+}
+
+// TaxDecisionSettledObligations carries the axes French law settles on its own,
+// available on a decision that is NOT final. An axis is nil when it depends on
+// the treatment the engines could not conclude; it is never guessed.
+type TaxDecisionSettledObligations struct {
+	// InvoiceChannel is "einvoicing" or "none".
+	InvoiceChannel *string `json:"invoiceChannel"`
+	// TransactionReporting is "ereporting", "none" or "outside_scope".
+	TransactionReporting *string `json:"transactionReporting"`
+	// PaymentReporting is "fr212", "ereporting" or "none".
+	PaymentReporting *string `json:"paymentReporting"`
+}
+
 // TaxDecisionObligationReason explains one reporting axis.
 type TaxDecisionObligationReason struct {
 	// Axis is "invoiceChannel", "transactionReporting" or "paymentReporting".
@@ -291,6 +464,11 @@ type TaxDecisionLineParams struct {
 	PlaceOfSupplyRule string `json:"placeOfSupplyRule,omitempty"`
 	// GoodsMovement is "stays_in_seller_territory",
 	// "dispatched_to_buyer_territory" or "unknown".
+	//
+	// Required on a goods line — under BOTH sources — as soon as the buyer is a
+	// consumer established in another member state: that movement decides
+	// whether the intra-EU distance sale rule applies (Directive 2006/112/EC
+	// art. 33(a)), and it is never assumed.
 	GoodsMovement string `json:"goodsMovement,omitempty"`
 	// UnitAmount is the unit price in integer centimes, in the request's
 	// PriceMode.
@@ -312,6 +490,12 @@ type TaxDecisionLineParams struct {
 	VatexCode string `json:"vatexCode,omitempty"`
 	// PlaceOfSupply is the territory the supplied VAT concluded on
 	// ("FR-MET", "DE", "GB"…). "integration" source only.
+	//
+	// Required as soon as the buyer is established in a French overseas
+	// collectivity or the TAAF ("PM", "BL", "MF", "PF", "NC", "WF", "TF"):
+	// the place is what says whether the local tax of that collectivity is at
+	// stake, and it is never assumed. A place located in one of those seven
+	// makes the decision non-final, except the sourced New Caledonian B2B case.
 	PlaceOfSupply string `json:"placeOfSupply,omitempty"`
 }
 

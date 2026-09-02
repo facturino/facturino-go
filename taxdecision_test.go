@@ -343,6 +343,9 @@ func TestTaxDecisionNonFinalHasNilAmounts(t *testing.T) {
 		  "status": "pending_verification",
 		  "totals": null, "amountToCharge": null,
 		  "invoiceChannel": null, "transactionReporting": null, "paymentReporting": null,
+		  "settledObligations": {
+		    "invoiceChannel": "none", "transactionReporting": "ereporting", "paymentReporting": null
+		  },
 		  "issues": [{"code": "vies_unavailable", "message": "VIES is unreachable."}]
 		}`)
 	})
@@ -363,6 +366,23 @@ func TestTaxDecisionNonFinalHasNilAmounts(t *testing.T) {
 	}
 	if len(d.Issues) != 1 || d.Issues[0].Code != "vies_unavailable" {
 		t.Errorf("Issues = %+v", d.Issues)
+	}
+	// The three document axes stay nil, but what French law settled anyway is
+	// carried as a VALUE rather than lost with the amount.
+	if d.SettledObligations == nil {
+		t.Fatal("SettledObligations = nil on a non-final decision that carries settled axes")
+	}
+	if d.SettledObligations.TransactionReporting == nil ||
+		*d.SettledObligations.TransactionReporting != "ereporting" {
+		t.Errorf("SettledObligations.TransactionReporting = %+v, want \"ereporting\"", d.SettledObligations.TransactionReporting)
+	}
+	// An axis that depends on the refused treatment is not guessed.
+	if d.SettledObligations.PaymentReporting != nil {
+		t.Errorf("SettledObligations.PaymentReporting = %v, want nil", *d.SettledObligations.PaymentReporting)
+	}
+	// It authorises nothing: the decision is still not final.
+	if d.IsFinal() {
+		t.Error("IsFinal() = true although only settled axes are present")
 	}
 }
 
@@ -537,6 +557,139 @@ func TestIntegrationSourceLinesCarryTheirSuppliedVat(t *testing.T) {
 	}
 }
 
+func TestEuB2cDestinationTraceIsReadable(t *testing.T) {
+	// The rate a document bears must be auditable years later: registry version,
+	// source, verification date and period travel with the decision.
+	client, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(201)
+		fmt.Fprint(w, `{"id":"taxdec_eu1","object":"tax_decision","status":"final",`+
+			`"taxSource":"facturino","euB2cDestination":{`+
+			`"coveredLineIds":["line-1"],"ruleKinds":["tbe_services"],`+
+			`"destinationMemberState":"PT","destinationTerritoryId":"PT-MA",`+
+			`"place":"destination","basis":"threshold_exceeded",`+
+			`"reference":"Directive 2006/112/CE art. 59 quater","detail":"cap passed",`+
+			`"threshold":{"decidedOn":"ledger_cumulative","capCents":1000000,`+
+			`"stateId":"2026_test","year":"2026","stateVersion":4,"sequence":7,`+
+			`"reservationId":"claim_1","coverageMode":"mixed_channels",`+
+			`"previousYearAmountCents":0,"currentYearOpeningCents":100000,`+
+			`"openingDeclaredAt":"2026-01-01","externalCompleteThroughDate":"2026-09-15",`+
+			`"adjustmentTotalCents":40000,"adjustmentCount":1,`+
+			`"cumulativeBeforeMinCents":140000,"cumulativeBeforeMaxCents":140000,`+
+			`"operationValueMinCents":2900,"operationValueMaxCents":2900,`+
+			`"cumulativeAfterMinCents":142900,"cumulativeAfterMaxCents":142900},"option":null,`+
+			`"mechanism":{"kind":"oss_union","memberState":"PT","reference":"regime UE"},`+
+			`"rate":{"registryVersion":"eu-standard-rates-2026-09-01","memberState":"PT",`+
+			`"territoryId":"PT-MA","regionId":"PT-MA","centipercent":2200,`+
+			`"validFrom":"2026-09-01","validTo":null,"source":"CIVA art. 18","verifiedAt":"2026-09-01"}}}`)
+	})
+
+	decision, err := client.TaxDecisions.Create(&TaxDecisionParams{
+		TaxSource: "facturino", Customer: "cus_8f2k4m9n", EffectiveAt: "2026-09-15",
+		Currency: "eur", PriceMode: "tax_exclusive",
+		Lines: []*TaxDecisionLineParams{{
+			Reference: "line-1", Description: "Abonnement",
+			Category: "electronically_supplied_services", RateCategory: "standard",
+			UnitAmount: 2900, Quantity: "1",
+		}},
+		IdempotencyKey: "order-eu-1",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	trace := decision.EuB2cDestination
+	if trace == nil {
+		t.Fatal("EuB2cDestination = nil on a destination-taxed decision")
+	}
+	if trace.Place == nil || *trace.Place != "destination" {
+		t.Errorf("Place = %v, want destination", trace.Place)
+	}
+	if trace.Rate == nil || trace.Rate.Centipercent != 2200 {
+		t.Errorf("Rate = %+v, want 2200 centipercent", trace.Rate)
+	}
+	if trace.Rate.RegionID == nil || *trace.Rate.RegionID != "PT-MA" {
+		t.Errorf("Rate.RegionID = %v, want PT-MA", trace.Rate.RegionID)
+	}
+	if trace.Mechanism == nil || trace.Mechanism.Kind != "oss_union" {
+		t.Errorf("Mechanism = %+v, want oss_union", trace.Mechanism)
+	}
+	// The ledger the decision drew on, and the slice it took there.
+	if trace.Threshold == nil || trace.Threshold.StateID != "2026_test" {
+		t.Errorf("Threshold = %+v, want ledger 2026_test", trace.Threshold)
+	}
+	if trace.Threshold.Sequence != 7 || trace.Threshold.CumulativeAfterMinCents != 142900 {
+		t.Errorf("Threshold slice = %+v", trace.Threshold)
+	}
+}
+
+func TestEuThresholdLedgerRoundTrip(t *testing.T) {
+	var paths []string
+	client, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) {
+		paths = append(paths, r.URL.Path)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(201)
+		fmt.Fprint(w, `{"object":"eu_threshold_ledger","id":"2026_test","year":"2026",`+
+			`"capCents":1000000,"cumulativeMin":140000,"remainingMin":860000,`+
+			`"adjustmentTotal":40000,"reservations":[],"entries":[]}`)
+	})
+
+	ledger, err := client.EuThresholdLedgers.Open(&OpenEuThresholdLedgerParams{
+		Year: "2026", PreviousYearAmount: 250000, CurrentYearOpening: 100000,
+		CoverageMode: "mixed_channels", ExternalCompleteThroughDate: "2026-01-01",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if ledger.RemainingMin != 860000 {
+		t.Errorf("RemainingMin = %d, want 860000", ledger.RemainingMin)
+	}
+
+	if _, err := client.EuThresholdLedgers.Adjust("2026", &EuThresholdAdjustmentParams{
+		Reference: "adj-marketplace-08", Amount: 40000,
+		ExternalCompleteThroughDate: "2026-09-15", Reason: "Marketplace sales, August",
+	}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	want := []string{"/v1/eu-threshold-ledgers", "/v1/eu-threshold-ledgers/2026/adjustments"}
+	if len(paths) != 2 || paths[0] != want[0] || paths[1] != want[1] {
+		t.Errorf("paths = %v, want %v", paths, want)
+	}
+}
+
+func TestGoodsMovementReachesAnIntegrationLine(t *testing.T) {
+	// The distance-sale rule is decided by a fact, never by an assumption.
+	var body map[string]interface{}
+	client, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) {
+		raw, _ := io.ReadAll(r.Body)
+		_ = json.Unmarshal(raw, &body)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(201)
+		fmt.Fprint(w, `{"id":"taxdec_int2","object":"tax_decision","status":"final","taxSource":"integration"}`)
+	})
+
+	rate := 1900
+	if _, err := client.TaxDecisions.Create(&TaxDecisionParams{
+		TaxSource: "integration", Customer: "cus_8f2k4m9n", EffectiveAt: "2026-09-15",
+		Currency: "eur", PriceMode: "tax_exclusive",
+		Lines: []*TaxDecisionLineParams{{
+			Reference: "line-1", Description: "Chaise", Category: "goods",
+			GoodsMovement: "dispatched_to_buyer_territory",
+			UnitAmount:    2900, Quantity: "1",
+			VatRate: &rate, VatCode: "S",
+		}},
+		IdempotencyKey: "order-goods-1",
+	}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	line := body["lines"].([]interface{})[0].(map[string]interface{})
+	if line["goodsMovement"] != "dispatched_to_buyer_territory" {
+		t.Errorf("goodsMovement = %v, want dispatched_to_buyer_territory", line["goodsMovement"])
+	}
+}
+
 func TestInvoiceReadsThreeAxes(t *testing.T) {
 	client, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -660,12 +813,63 @@ func TestFiscalSurfaceParity(t *testing.T) {
 	decision := reflect.TypeOf(TaxDecision{})
 	for _, field := range []string{
 		"Status", "TaxSource", "AmountToCharge", "Totals", "InvoiceChannel",
-		"TransactionReporting", "PaymentReporting", "ForeignTaxReviewRequired",
+		"TransactionReporting", "PaymentReporting", "SettledObligations",
+		"EuB2cDestination", "ForeignTaxReviewRequired",
 		"RetryOfTaxDecisionID", "Expired", "RulesVersion", "OperationFingerprint",
 		"ObligationReasons", "Vies", "Issues", "LocationEvidence",
 	} {
 		if _, found := decision.FieldByName(field); !found {
 			t.Errorf("TaxDecision.%s is missing", field)
+		}
+	}
+
+	if client.EuThresholdLedgers == nil {
+		t.Fatal("EuThresholdLedgers dropped from the client")
+	}
+	ledgerService := reflect.TypeOf(client.EuThresholdLedgers)
+	for _, method := range []string{
+		"Open", "Get", "Retrieve", "Adjust", "ListEntries", "Correct", "Review", "ResolveReview",
+	} {
+		if _, found := ledgerService.MethodByName(method); !found {
+			t.Errorf("EuThresholdLedgerService.%s is missing", method)
+		}
+	}
+
+	// Le solde de chaque mouvement est LISIBLE : un lecteur qui ne verrait que
+	// le montant proposerait une correction que le registre refuse aussitôt.
+	entry := reflect.TypeOf(EuThresholdLedgerEntry{})
+	for _, field := range []string{
+		"Correctable", "CorrectedMin", "CorrectionCount", "RemainingMin", "RemainingEvidenceMin",
+	} {
+		if _, found := entry.FieldByName(field); !found {
+			t.Errorf("EuThresholdLedgerEntry.%s is missing", field)
+		}
+	}
+
+	// Une revue ne se referme que sur une réconciliation vérifiable.
+	resolution := reflect.TypeOf(EuThresholdReviewResolutionParams{})
+	for _, field := range []string{
+		"ReconciledVersion", "ReconciledAcquiredMin", "ReconciledAcquiredEvidenceMin", "EvidenceReference",
+	} {
+		if _, found := resolution.FieldByName(field); !found {
+			t.Errorf("EuThresholdReviewResolutionParams.%s is missing", field)
+		}
+	}
+
+	ledger := reflect.TypeOf(EuThresholdLedger{})
+	for _, field := range []string{
+		"Year", "Status", "Review", "CapCents", "EvidenceCapCents", "Opening",
+		"ExternalCompleteThroughDate", "AdjustmentTotal", "AdjustmentEvidenceTotal",
+		"CorrectionTotal", "CorrectionCount",
+		// Acquired and reserved are published APART: a held slice may still
+		// disappear, so summing them into one figure would hide the uncertainty.
+		"AcquiredMin", "AcquiredMax", "AcquiredEvidenceMin",
+		"ReservedMin", "ReservedMax", "ReservedEvidenceMin",
+		"RemainingMin", "EvidenceRemainingMin",
+		"Reservations", "Entries", "EntriesHasMore", "EntriesNextCursor",
+	} {
+		if _, found := ledger.FieldByName(field); !found {
+			t.Errorf("EuThresholdLedger.%s is missing", field)
 		}
 	}
 

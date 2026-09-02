@@ -32,9 +32,11 @@ type Client struct {
 	Billing           *BillingService
 	Reference         *ReferenceService
 	TaxDecisions      *TaxDecisionService
-	Usage             *UsageService
-	Validate          *ValidateService
-	Health            *HealthService
+	// EuThresholdLedgers maintains the annual ledger of the EUR 10,000 threshold.
+	EuThresholdLedgers *EuThresholdLedgerService
+	Usage              *UsageService
+	Validate           *ValidateService
+	Health             *HealthService
 
 	client *httpClient
 }
@@ -120,6 +122,7 @@ func buildClient(hc *httpClient) *Client {
 	c.Billing = &BillingService{client: hc}
 	c.Reference = &ReferenceService{client: hc}
 	c.TaxDecisions = &TaxDecisionService{client: hc}
+	c.EuThresholdLedgers = &EuThresholdLedgerService{client: hc}
 	c.Usage = &UsageService{client: hc}
 	c.Validate = &ValidateService{client: hc}
 	c.Health = &HealthService{client: hc}
