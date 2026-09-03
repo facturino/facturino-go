@@ -20,7 +20,7 @@ const (
 	defaultTimeout    = 30 * time.Second
 	apiVersion        = "v1"
 	apiDateVersion    = "2026-09-01"
-	sdkVersion        = "2.1.0"
+	sdkVersion        = "2.2.0"
 	defaultMaxRetries = 3
 )
 
@@ -295,14 +295,21 @@ func (c *httpClient) parseError(statusCode int, body []byte) error {
 	var envelope errorEnvelope
 	if err := json.Unmarshal(body, &envelope); err == nil && envelope.Error != nil {
 		envelope.Error.HTTPStatusCode = statusCode
+		// Never nil: the other SDKs publish an EMPTY list when the API sent no
+		// detail, and reading Issues must not need a nil check in Go either.
+		if envelope.Error.Issues == nil {
+			envelope.Error.Issues = []ErrorIssue{}
+		}
 		return envelope.Error
 	}
 
-	// Fallback for non-standard error responses
+	// Fallback for non-standard error responses. Issues is empty, never nil:
+	// reading it must not need a nil check on ANY path, including this one.
 	return &Error{
 		Type:           ErrorTypeAPI,
 		Code:           "unknown",
 		Message:        fmt.Sprintf("unexpected status %d: %s", statusCode, string(body)),
 		HTTPStatusCode: statusCode,
+		Issues:         []ErrorIssue{},
 	}
 }

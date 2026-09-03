@@ -4,6 +4,39 @@ All notable changes to the Facturino Go SDK are documented here. This project
 adheres to [Semantic Versioning](https://semver.org/) and
 [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.2.0] - 2026-09-03
+
+### Added
+- `Error.Issues` (`[]ErrorIssue`) — the detailed reasons behind one refusal,
+  each with a stable `Code`, the `Param` in cause and a `Message`. An EMPTY,
+  non-nil slice when the API sent none, so reading it never needs a nil check.
+
+### Changed
+- `LocationEvidenceResult.TerritoryID` is empty when the API resolved the item
+  at COUNTRY level only — a network kind (`ip_geolocation`, `bank_details`,
+  `sim_mobile_country`, `fixed_line`) supplied without a postal code, published
+  as JSON `null`. `DeclaredCountry` carries the country. The field keeps its
+  `string` type, so no caller changes.
+
+### Documented
+- **`issues` is ADDITIVE.** The main `code` is unchanged and stays the value to
+  branch on; `param` still points at the first field in cause. A refusal that has
+  nothing more to say carries no `issues` key at all — an empty array would make
+  "no detail available" indistinguishable from "detail computed, and empty".
+- **The published code is the most PRECISE stable one.** Where the main code
+  covers several distinct facts, the entry names the actual one: a buyer
+  territory that would not resolve answers `validation_error` as the main code
+  and `invalid_postal_code` or `territory_conflict` as the detail.
+- **`param` is never a guess.** It is filled only where the mapping holds for
+  every request — `invalid_postal_code` → `customer.address.postalCode`,
+  `territory_conflict` → `customer.address.country`, a reason carried by a line →
+  `lines[<index>]` — and is absent otherwise: an approximate pointer would send
+  the caller to correct a field that was right.
+- The reasons come from the tax decision engine, so they reach the refusals of
+  `POST /v1/tax-decisions` and of every endpoint that takes a decision on the
+  way — invoices, credit notes, quotes, recurring invoices. Messages carry no
+  personal data.
+
 ## [2.1.0] - 2026-09-02
 
 ### Added

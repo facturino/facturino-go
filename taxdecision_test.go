@@ -925,3 +925,22 @@ func TestInvoiceCreateRequiresTheDecisionLocally(t *testing.T) {
 		t.Fatal("Create(nil) must refuse locally")
 	}
 }
+
+func TestLocationEvidenceResolvedAtCountryLevel(t *testing.T) {
+	// A network kind supplied without a postal code is resolved at country
+	// level by the API, which publishes territoryId as JSON null. The field
+	// keeps its string type: null decodes to the empty string, and the country
+	// travels in declaredCountry.
+	var item LocationEvidenceResult
+	raw := `{"kind":"ip_geolocation","territoryId":null,"declaredCountry":"FR","declaredPostalCode":null,
+	  "thirdParty":true,"source":"network","collectedAt":"2026-09-15","reference":null}`
+	if err := json.Unmarshal([]byte(raw), &item); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if item.TerritoryID != "" {
+		t.Errorf("TerritoryID = %q, want empty for a country-level item", item.TerritoryID)
+	}
+	if item.DeclaredCountry != "FR" || item.Kind != "ip_geolocation" {
+		t.Errorf("country-level item lost its country or kind: %+v", item)
+	}
+}

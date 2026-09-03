@@ -180,6 +180,87 @@ func TestErrorParsing(t *testing.T) {
 	}
 }
 
+// A refusal keeps ONE main code — that is what a caller branches on. When it
+// rests on a more precise reason, `issues` publishes it as data, with the field
+// in cause, instead of joining it into the message.
+func TestErrorIssues(t *testing.T) {
+	client, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(422)
+		fmt.Fprint(w, `{"error":{"type":"validation_error","code":"validation_error",`+
+			`"message":"Buyer territory could not be resolved.","param":"customerId",`+
+			`"request_id":"req_abc","issues":[{"code":"invalid_postal_code",`+
+			`"param":"customer.address.postalCode","message":"Buyer territory could not be resolved."}]}}`)
+	})
+
+	_, err := client.Invoices.Get("inv_1")
+	apiErr, ok := err.(*Error)
+	if !ok {
+		t.Fatalf("expected *Error, got %T", err)
+	}
+	if apiErr.Code != "validation_error" {
+		t.Errorf("Code = %q, want %q", apiErr.Code, "validation_error")
+	}
+	if apiErr.Param != "customerId" {
+		t.Errorf("Param = %q, want %q", apiErr.Param, "customerId")
+	}
+	if len(apiErr.Issues) != 1 {
+		t.Fatalf("len(Issues) = %d, want 1", len(apiErr.Issues))
+	}
+	if apiErr.Issues[0].Code != "invalid_postal_code" {
+		t.Errorf("Issues[0].Code = %q, want %q", apiErr.Issues[0].Code, "invalid_postal_code")
+	}
+	if apiErr.Issues[0].Param != "customer.address.postalCode" {
+		t.Errorf("Issues[0].Param = %q, want %q", apiErr.Issues[0].Param, "customer.address.postalCode")
+	}
+}
+
+// A refusal with nothing more to say carries no issues at all.
+func TestErrorWithoutIssues(t *testing.T) {
+	client, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(404)
+		fmt.Fprint(w, `{"error":{"type":"not_found_error","code":"resource_missing","message":"Invoice not found","request_id":"req_abc"}}`)
+	})
+
+	_, err := client.Invoices.Get("inv_1")
+	apiErr, ok := err.(*Error)
+	if !ok {
+		t.Fatalf("expected *Error, got %T", err)
+	}
+	if len(apiErr.Issues) != 0 {
+		t.Errorf("len(Issues) = %d, want 0", len(apiErr.Issues))
+	}
+	if apiErr.Issues == nil {
+		t.Errorf("Issues is nil, want an empty non-nil slice")
+	}
+}
+
+// A response that is not the JSON envelope at all — a gateway HTML page — still
+// yields the same contract: reading Issues never needs a nil check.
+func TestErrorIssuesOnNonJSONResponse(t *testing.T) {
+	client, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		w.WriteHeader(502)
+		fmt.Fprint(w, `<html>bad gateway</html>`)
+	})
+
+	_, err := client.Invoices.Get("inv_1")
+	apiErr, ok := err.(*Error)
+	if !ok {
+		t.Fatalf("expected *Error, got %T", err)
+	}
+	if apiErr.Code != "unknown" {
+		t.Errorf("Code = %q, want %q", apiErr.Code, "unknown")
+	}
+	if apiErr.Issues == nil {
+		t.Fatalf("Issues is nil, want an empty non-nil slice")
+	}
+	if len(apiErr.Issues) != 0 {
+		t.Errorf("len(Issues) = %d, want 0", len(apiErr.Issues))
+	}
+}
+
 func TestErrorHelpers(t *testing.T) {
 	notFoundErr := &Error{Type: ErrorTypeNotFound}
 	rateLimitErr := &Error{Type: ErrorTypeRateLimit}

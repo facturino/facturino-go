@@ -284,11 +284,11 @@ type TaxDecisionThresholdTrace struct {
 	CumulativeBeforeMaxCents int `json:"cumulativeBeforeMaxCents"`
 	// PendingPredecessorCount is how many concurrent operations the upper bound
 	// accounts for.
-	PendingPredecessorCount int    `json:"pendingPredecessorCount"`
-	OperationValueMinCents  int    `json:"operationValueMinCents"`
-	OperationValueMaxCents      int    `json:"operationValueMaxCents"`
-	CumulativeAfterMinCents     int    `json:"cumulativeAfterMinCents"`
-	CumulativeAfterMaxCents     int    `json:"cumulativeAfterMaxCents"`
+	PendingPredecessorCount int `json:"pendingPredecessorCount"`
+	OperationValueMinCents  int `json:"operationValueMinCents"`
+	OperationValueMaxCents  int `json:"operationValueMaxCents"`
+	CumulativeAfterMinCents int `json:"cumulativeAfterMinCents"`
+	CumulativeAfterMaxCents int `json:"cumulativeAfterMaxCents"`
 }
 
 // TaxDecisionDestinationOption is the option period, when it settled the place.
@@ -410,7 +410,12 @@ type LocationEvidenceParams struct {
 // LocationEvidenceResult is normalized territorial evidence kept with the
 // decision. No raw signal is exposed.
 type LocationEvidenceResult struct {
-	Kind               string `json:"kind"`
+	Kind string `json:"kind"`
+	// TerritoryID is the canonical territory the evidence points to. It is
+	// EMPTY when the API resolved the item at country level only — a network
+	// kind (ip_geolocation, bank_details, sim_mobile_country, fixed_line)
+	// supplied without a postal code, published as JSON null. DeclaredCountry
+	// then carries the country.
 	TerritoryID        string `json:"territoryId"`
 	DeclaredCountry    string `json:"declaredCountry"`
 	DeclaredPostalCode string `json:"declaredPostalCode,omitempty"`
