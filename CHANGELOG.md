@@ -4,6 +4,13 @@ All notable changes to the Facturino Go SDK are documented here. This project
 adheres to [Semantic Versioning](https://semver.org/) and
 [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.3.1] - 2026-09-04
+
+### Fixed
+- `TaxDecisionLineParams.RateCategory` is omitted when empty. A line whose VAT
+  the integration supplies states a rate, not a band, and the API refuses the
+  key outright on that source: an unset band no longer travels at all.
+
 ## [2.3.0] - 2026-09-04
 
 ### Added

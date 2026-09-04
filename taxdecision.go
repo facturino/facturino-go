@@ -463,7 +463,10 @@ type TaxDecisionLineParams struct {
 	// "ancillary_costs": it names the principal supply they follow.
 	RelatedCategory string `json:"relatedCategory,omitempty"`
 	// RateCategory is the band requested. The engine decides whether it applies.
-	RateCategory string `json:"rateCategory"`
+	//
+	// Omitted when empty: a line whose VAT the INTEGRATION supplies states a
+	// rate, not a band, and the API refuses the key outright on that source.
+	RateCategory string `json:"rateCategory,omitempty"`
 	// PlaceOfSupplyRule claims a territoriality rule. Only "general" is
 	// implemented; anything else is reported as unsupported rather than guessed.
 	PlaceOfSupplyRule string `json:"placeOfSupplyRule,omitempty"`

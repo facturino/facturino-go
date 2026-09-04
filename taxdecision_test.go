@@ -296,6 +296,40 @@ func TestTaxDecisionCreateWithEvidence(t *testing.T) {
 	}
 }
 
+// An integration-supplied line states a RATE, not a band. `rateCategory` is
+// refused outright on that source, so an unset band must not travel at all.
+func TestIntegrationLineSendsNoRateCategory(t *testing.T) {
+	var raw string
+	client, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		raw = string(b)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(201)
+		fmt.Fprint(w, finalDecisionJSON)
+	})
+
+	rate := 2000
+	_, err := client.TaxDecisions.Create(&TaxDecisionParams{
+		TaxSource: "integration", Customer: "cus_8f2k4m9n", EffectiveAt: "2026-09-15",
+		Currency: "eur", PriceMode: "tax_exclusive",
+		Lines: []*TaxDecisionLineParams{{
+			Reference: "conseil-integ", Description: "Conseil",
+			Category: "services", UnitAmount: 10000, Quantity: "1",
+			VatRate: &rate, VatCode: "S",
+		}},
+		IdempotencyKey: "order-integration",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if strings.Contains(raw, "rateCategory") {
+		t.Errorf("an empty rateCategory travelled on an integration line: %s", raw)
+	}
+	if !strings.Contains(raw, `"vatRate":2000`) {
+		t.Errorf("body missing the supplied rate: %s", raw)
+	}
+}
+
 func TestTaxDecisionGet(t *testing.T) {
 	client, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "GET" {
