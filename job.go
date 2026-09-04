@@ -4,8 +4,15 @@ import "fmt"
 
 // Job is an async operation (PDF generation, FEC export, etc.).
 type Job struct {
-	ID        string `json:"id"`
-	Type      string `json:"type"`
+	ID   string `json:"id"`
+	Type string `json:"type"`
+	// Status is one of "pending", "processing", "completed",
+	// "completed_with_errors", "failed" or "superseded". "superseded" is a
+	// TERMINAL state without a deliverable: the render was produced for a
+	// ledger revision that a collection, a cancellation or a refund has since
+	// overtaken. It is not a failure — request the document again and a
+	// current render is published. New values may be added: tolerate
+	// unknown ones.
 	Status    string `json:"status"`
 	InvoiceID string `json:"invoiceId,omitempty"`
 	Progress  int    `json:"progress"`

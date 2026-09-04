@@ -8,7 +8,7 @@ Go client library for the [Facturino](https://facturino.com) API — developer-f
 ## Installation
 
 ```bash
-go get github.com/facturino/facturino-go/v2@v2.2.0
+go get github.com/facturino/facturino-go/v2@v2.3.0
 ```
 
 Requires Go 1.21+. No external dependencies.
@@ -81,7 +81,7 @@ func main() {
 }
 ```
 
-**Immediate collection** — capture the decided amount, verify, then finalize:
+**Immediate collection** — capture the decided amount, verify, then finalize WITH the collection:
 
 ```go
 // Capture exactly AmountToCharge through your payment provider, payment
@@ -109,14 +109,13 @@ if settlement.Currency != source.Currency {
     log.Fatal("currency mismatch")
 }
 
-if _, err := client.Invoices.Finalize(invoice.ID); err != nil {
-    log.Fatal(err)
-}
-
-// Record the REAL payment — its real date, method and the settlement's
-// financial reference, never the decision id
+// Finalize AND record the REAL payment in one call: the numbering and the
+// collection land in the same transaction, so the issued original (PDF and
+// Factur-X) is rendered on a settled invoice. The parameter is the very
+// *PaymentParams that Payments.Create takes — its real date, method and the
+// settlement's financial reference, never the decision id
 // (transfer, card, check, cash, direct_debit, sepa, paypal or other).
-if _, err := client.Payments.Create(invoice.ID, &facturino.PaymentParams{
+if _, err := client.Invoices.FinalizeWithPayment(invoice.ID, &facturino.PaymentParams{
     Amount:    settlement.Amount,
     Method:    settlement.Method,
     Reference: settlement.Reference,

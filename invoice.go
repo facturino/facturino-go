@@ -101,6 +101,10 @@ type InvoiceDates struct {
 	ServiceEnd   string `json:"serviceEnd,omitempty"`
 	FinalizedAt  string `json:"finalizedAt,omitempty"`
 	SentAt       string `json:"sentAt,omitempty"`
+	// PaidAt is the actual settlement date: the paidAt of the payment that
+	// cleared the balance. Empty while a balance remains, cleared again when
+	// a reversal reopens one.
+	PaidAt string `json:"paidAt,omitempty"`
 }
 
 // InvoicePaymentTerms holds payment terms.
@@ -584,6 +588,39 @@ func (s *InvoiceService) BindTaxDecision(id string, params *BindTaxDecisionParam
 func (s *InvoiceService) Finalize(id string) (*Invoice, error) {
 	var inv Invoice
 	err := s.client.post(fmt.Sprintf("/invoices/%s/finalize", id), nil, &inv, nil)
+	if err != nil {
+		return nil, err
+	}
+	return &inv, nil
+}
+
+// finalizeBody carries the optional collection of a finalization.
+type finalizeBody struct {
+	Payment *PaymentParams `json:"payment,omitempty"`
+}
+
+// FinalizeWithPayment finalizes a draft invoice that was ALREADY COLLECTED
+// before issuance: the numbering and the collection are applied in the same
+// transaction, so the original PDF and Factur-X are rendered on a settled
+// invoice and say so.
+//
+// payment is the very *PaymentParams that Payments.Create takes (amount in
+// integer centimes), and the resulting payment is indistinguishable from one
+// recorded afterwards.
+//
+// All or nothing: a collection beyond the amount due is refused
+// (422 payment_exceeds_amount_due) and the invoice stays a draft — no number is
+// burned. Use Finalize when no collection accompanies the issuance.
+func (s *InvoiceService) FinalizeWithPayment(id string, payment *PaymentParams) (*Invoice, error) {
+	var inv Invoice
+	opts := &requestOption{}
+	if payment != nil && payment.IdempotencyKey != "" {
+		opts.idempotencyKey = payment.IdempotencyKey
+	}
+	err := s.client.post(
+		fmt.Sprintf("/invoices/%s/finalize", id),
+		finalizeBody{Payment: payment}, &inv, opts,
+	)
 	if err != nil {
 		return nil, err
 	}

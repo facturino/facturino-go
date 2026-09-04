@@ -1,8 +1,10 @@
 package facturino
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"testing"
 )
@@ -225,6 +227,66 @@ func TestInvoiceFinalize(t *testing.T) {
 	}
 	if inv.Status != "finalized" {
 		t.Errorf("Status = %q, want %q", inv.Status, "finalized")
+	}
+}
+
+// A collection received before issuance is applied in the SAME call: the
+// original document is rendered on a settled invoice.
+func TestInvoiceFinalizeWithPayment(t *testing.T) {
+	var body map[string]any
+	client, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/invoices/inv_123/finalize" {
+			t.Errorf("Path = %q, want /v1/invoices/inv_123/finalize", r.URL.Path)
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatalf("decoding body: %v", err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"id":"inv_123","object":"invoice","status":"paid","number":"FAC-2026-0001"}`)
+	})
+
+	inv, err := client.Invoices.FinalizeWithPayment("inv_123", &PaymentParams{
+		Amount:    120000,
+		Method:    "card",
+		Reference: "ch_3Kj9aLZ",
+		PaidAt:    "2026-05-10T12:00:00.000Z",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if inv.Status != "paid" {
+		t.Errorf("Status = %q, want %q", inv.Status, "paid")
+	}
+
+	payment, ok := body["payment"].(map[string]any)
+	if !ok {
+		t.Fatalf("body has no payment object: %v", body)
+	}
+	if payment["amount"] != float64(120000) {
+		t.Errorf("payment.amount = %v, want 120000", payment["amount"])
+	}
+	if payment["method"] != "card" {
+		t.Errorf("payment.method = %v, want card", payment["method"])
+	}
+	if payment["paidAt"] != "2026-05-10T12:00:00.000Z" {
+		t.Errorf("payment.paidAt = %v", payment["paidAt"])
+	}
+}
+
+// Finalize (no collection) must keep sending no payment at all.
+func TestInvoiceFinalizeSendsNoPayment(t *testing.T) {
+	var raw []byte
+	client, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) {
+		raw, _ = io.ReadAll(r.Body)
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"id":"inv_123","object":"invoice","status":"finalized"}`)
+	})
+
+	if _, err := client.Invoices.Finalize("inv_123"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(bytes.TrimSpace(raw)) != 0 {
+		t.Errorf("body = %q, want empty", raw)
 	}
 }
 

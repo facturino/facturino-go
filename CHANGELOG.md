@@ -4,6 +4,29 @@ All notable changes to the Facturino Go SDK are documented here. This project
 adheres to [Semantic Versioning](https://semver.org/) and
 [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.3.0] - 2026-09-04
+
+### Added
+- `Invoices.FinalizeWithPayment(id, *PaymentParams)` — an optional collection
+  applied in the SAME transaction as the numbering, so an invoice already paid
+  before issuance is ISSUED settled: the original PDF and Factur-X are rendered
+  on a settled document. The parameter is the very `*PaymentParams` that
+  `Payments.Create` takes (integer centimes), and the resulting payment is
+  indistinguishable from one recorded afterwards. All or nothing: a collection
+  beyond the amount due is refused (`422 payment_exceeds_amount_due`) and the
+  invoice stays a draft. `Invoices.Finalize(id)` is unchanged and keeps sending
+  no body — Go has no optional parameters, so the new behaviour is a new method
+  rather than a signature change.
+- `InvoiceDates.PaidAt` — the actual settlement date, empty until the invoice
+  is fully paid.
+
+### Documented
+- `Job.Status` lists its values, including the TERMINAL `superseded`: the
+  render was produced for a ledger revision that a collection, a cancellation
+  or a refund has since overtaken. It is not a failure — call
+  `Invoices.GetPDF(id)` again and a current render is published. Tolerate
+  unknown values: more may be added.
+
 ## [2.2.0] - 2026-09-03
 
 ### Added
