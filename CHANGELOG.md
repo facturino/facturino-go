@@ -4,6 +4,18 @@ All notable changes to the Facturino Go SDK are documented here. This project
 adheres to [Semantic Versioning](https://semver.org/) and
 [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.5.0] - 2026-09-06
+
+### Added
+- `Events.RetryDelivery(id)` and `Events.RetryToEndpoint(id, endpointID)`
+  return the scheduling receipt the API answers, `EventRetryResult`
+  `{ ID, Object, RetryScheduled, EndpointID }`. `RetryToEndpoint` replays an
+  event to one endpoint, even if already delivered. `Events.Retry` is kept
+  and deprecated: the endpoint never returned an event, only its ID and
+  Object were ever populated. Every event's `Data` now carries the document
+  fields `number`, `documentStatus`, `transmissionStatus`, `transmissionDetail`,
+  `paymentStatus` and `metadata` (credit notes add `relatedInvoiceId`).
+
 ## [2.4.0] - 2026-09-06
 
 ### Added
