@@ -119,17 +119,56 @@ type InvoicePaymentTerms struct {
 	CollectionFee        string `json:"collectionFee"`
 }
 
+// InvoiceSubmissionArtefact is the CII regenerated for a deposit when the
+// frozen original no longer satisfies a CIUS-FR rule: same number, same
+// amounts, stored under InvoiceFiles.CorrectedXMLPath; the archived Factur-X
+// is never rewritten.
+type InvoiceSubmissionArtefact struct {
+	Kind        string `json:"kind"`
+	Path        string `json:"path"`
+	GeneratedAt string `json:"generatedAt"`
+	// CorrectedRules lists the rules the regeneration satisfied (e.g. BR-FR-08).
+	CorrectedRules []string `json:"correctedRules"`
+}
+
+// InvoicePreviousSubmission is a closed attempt of the same document on the
+// platform: a rejected deposit resent under the same number opens a new
+// attempt whose identifiers are the live ones on InvoiceEinvoicing.
+type InvoicePreviousSubmission struct {
+	PAID             string `json:"paId"`
+	PATransactionID  string `json:"paTransactionId"`
+	PAIdempotencyKey string `json:"paIdempotencyKey"`
+	PAStatus         string `json:"paStatus"`
+	PAStatusCode     string `json:"paStatusCode"`
+	PAErrorCode      string `json:"paErrorCode"`
+	RejectionReason  string `json:"rejectionReason"`
+	SentAt           string `json:"sentAt"`
+	// ClosedAt is when the next attempt was opened.
+	ClosedAt string `json:"closedAt"`
+}
+
 // InvoiceEinvoicing holds e-invoicing (PA) status.
 type InvoiceEinvoicing struct {
-	PAID             string `json:"paId"`
-	PAStatus         string `json:"paStatus"`
-	PATransactionID  string `json:"paTransactionId"`
-	PAErrorCode      string `json:"paErrorCode"`
+	PAID     string `json:"paId"`
+	PAStatus string `json:"paStatus"`
+	// PAStatusCode is the raw platform status code (e.g. "fr:200").
+	PAStatusCode    string `json:"paStatusCode,omitempty"`
+	PATransactionID string `json:"paTransactionId"`
+	PAErrorCode     string `json:"paErrorCode"`
+	// RejectionReason is the platform's reason for a rejection, whatever
+	// channel it arrived through; RefusalReason is the buyer's reason for a refusal.
+	RejectionReason  string `json:"rejectionReason,omitempty"`
+	RefusalReason    string `json:"refusalReason,omitempty"`
 	PAIdempotencyKey string `json:"paIdempotencyKey"`
 	PeppolDeliveryID string `json:"peppolDeliveryId"`
 	EreportingID     string `json:"ereportingId"`
 	SentAt           string `json:"sentAt"`
 	TrackingID       string `json:"trackingId"`
+
+	SubmissionArtefact *InvoiceSubmissionArtefact `json:"submissionArtefact,omitempty"`
+	// PreviousSubmissions lists the closed attempts, oldest first; absent until
+	// a rejected deposit is resent.
+	PreviousSubmissions []*InvoicePreviousSubmission `json:"previousSubmissions,omitempty"`
 }
 
 // InvoiceArchive holds hash chain data.
@@ -145,6 +184,8 @@ type InvoiceFiles struct {
 	PDFPath     string `json:"pdfPath,omitempty"`
 	FacturXPath string `json:"facturxPath,omitempty"`
 	XMLPath     string `json:"xmlPath,omitempty"`
+	// CorrectedXMLPath is the CII regenerated for the deposit, see InvoiceEinvoicing.SubmissionArtefact.
+	CorrectedXMLPath string `json:"correctedXmlPath,omitempty"`
 }
 
 // InvoicePortal holds payment portal data.

@@ -4,6 +4,28 @@ All notable changes to the Facturino Go SDK are documented here. This project
 adheres to [Semantic Versioning](https://semver.org/) and
 [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.4.0] - 2026-09-06
+
+### Added
+- `InvoiceEinvoicing` exposes `PAStatusCode`, `RejectionReason` (the
+  platform's reason for a rejection, whatever channel it arrived through),
+  `RefusalReason`, `SubmissionArtefact` and `PreviousSubmissions` (the closed
+  attempts of a document resent after a platform rejection); `InvoiceFiles`
+  exposes `CorrectedXMLPath` — the CII regenerated for a deposit when the frozen
+  original no longer satisfies a CIUS-FR rule.
+
+### Changed
+- `EReporting` exposes the published fields: `State`, `Volet`, `PeriodStart`,
+  `PeriodEnd`, `Attempt`, `BlockedReason`, `PARejectionReason`,
+  `ReconciliationReason`, `SupersedesDeclarationID`, `SupersededByDeclarationID`.
+- `EReportingLine` and `EReportingLineParams` carry the optional per-line
+  fields: `Date`, `IssueDate`, `InvoiceNumber`, `Country`, `PartnerVAT`,
+  `PartnerName`, `VATCategoryCode`, `VATExCode`, `Count`, `DocumentType`
+  (`380` / `381`), `OriginalInvoiceNumber` and `OriginalInvoiceDate` (the
+  invoice a credit note corrects; both are required to transmit a unit credit
+  note, DGFiP G1.32). `EReportingLineParams.VATExCodeNull` sends an explicit
+  `"vatexCode": null`, which a nil pointer cannot express.
+
 ## [2.3.1] - 2026-09-04
 
 ### Fixed
