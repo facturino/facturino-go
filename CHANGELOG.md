@@ -4,6 +4,21 @@ All notable changes to the Facturino Go SDK are documented here. This project
 adheres to [Semantic Versioning](https://semver.org/) and
 [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.6.0] - 2026-09-07
+
+### Added
+- `InvoiceEinvoicing.RejectionCategory` and
+  `InvoicePreviousSubmission.RejectionCategory`: the server's stable reading
+  of a rejection or a refusal (`buyer_not_in_directory`, `format_invalid`,
+  `semantic_error`, `duplicate`, `platform_auth`, `platform_unavailable`,
+  `refused_by_buyer`, `suspended`, `unknown`). Empty once a new attempt is
+  opened; the raw words stay in `RejectionReason`.
+- `Payment.FR212` (`PaymentCollectionStatus`): where the fr:212 « Encaissée »
+  status of a payment stands on the platform (`State`, `SentAt`,
+  `LastErrorCode`, `LastErrorReason`, `UpdatedAt`).
+- Webhook event data carries `paErrorCode`, `rejectionReason` and
+  `rejectionCategory` on invoice and credit note events.
+
 ## [2.5.0] - 2026-09-06
 
 ### Added

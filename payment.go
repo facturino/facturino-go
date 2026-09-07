@@ -15,6 +15,21 @@ type Payment struct {
 	PaidAt     string `json:"paidAt"`
 	RecordedBy string `json:"recorded_by"`
 	Created    string `json:"created"`
+	// FR212 is where the collection status (fr:212 « Encaissée ») of this
+	// payment stands on the platform; nil when no such status is owed.
+	FR212 *PaymentCollectionStatus `json:"fr212,omitempty"`
+}
+
+// PaymentCollectionStatus is the platform-side state of a payment's fr:212 status.
+type PaymentCollectionStatus struct {
+	// State is pending, awaiting_deposit, sent, blocked, reconciliation_required or failed.
+	State         string `json:"state"`
+	SentAt        string `json:"sentAt"`
+	LastErrorCode string `json:"lastErrorCode"`
+	// LastErrorReason is the platform's words when it refused the status
+	// (LastErrorCode pa_lifecycle_rejected); empty otherwise.
+	LastErrorReason string `json:"lastErrorReason,omitempty"`
+	UpdatedAt       string `json:"updatedAt"`
 }
 
 // PaymentParams are the parameters for recording a payment. Amount in centimes.

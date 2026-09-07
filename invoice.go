@@ -142,7 +142,10 @@ type InvoicePreviousSubmission struct {
 	PAStatusCode     string `json:"paStatusCode"`
 	PAErrorCode      string `json:"paErrorCode"`
 	RejectionReason  string `json:"rejectionReason"`
-	SentAt           string `json:"sentAt"`
+	// RejectionCategory is the server's reading of the rejection (see
+	// InvoiceEinvoicing.RejectionCategory).
+	RejectionCategory string `json:"rejectionCategory,omitempty"`
+	SentAt            string `json:"sentAt"`
 	// ClosedAt is when the next attempt was opened.
 	ClosedAt string `json:"closedAt"`
 }
@@ -157,13 +160,18 @@ type InvoiceEinvoicing struct {
 	PAErrorCode     string `json:"paErrorCode"`
 	// RejectionReason is the platform's reason for a rejection, whatever
 	// channel it arrived through; RefusalReason is the buyer's reason for a refusal.
-	RejectionReason  string `json:"rejectionReason,omitempty"`
-	RefusalReason    string `json:"refusalReason,omitempty"`
-	PAIdempotencyKey string `json:"paIdempotencyKey"`
-	PeppolDeliveryID string `json:"peppolDeliveryId"`
-	EreportingID     string `json:"ereportingId"`
-	SentAt           string `json:"sentAt"`
-	TrackingID       string `json:"trackingId"`
+	RejectionReason string `json:"rejectionReason,omitempty"`
+	// RejectionCategory is the server's reading of a rejection or a refusal:
+	// buyer_not_in_directory, format_invalid, semantic_error, duplicate,
+	// platform_auth, platform_unavailable, refused_by_buyer, suspended, unknown.
+	// Empty once a new attempt is opened.
+	RejectionCategory string `json:"rejectionCategory,omitempty"`
+	RefusalReason     string `json:"refusalReason,omitempty"`
+	PAIdempotencyKey  string `json:"paIdempotencyKey"`
+	PeppolDeliveryID  string `json:"peppolDeliveryId"`
+	EreportingID      string `json:"ereportingId"`
+	SentAt            string `json:"sentAt"`
+	TrackingID        string `json:"trackingId"`
 
 	SubmissionArtefact *InvoiceSubmissionArtefact `json:"submissionArtefact,omitempty"`
 	// PreviousSubmissions lists the closed attempts, oldest first; absent until
