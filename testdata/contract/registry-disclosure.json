@@ -1,0 +1,30 @@
+{
+  "object": "sirene_lookup",
+  "found": true,
+  "data": {
+    "name": "",
+    "disclosure": {
+      "status": "P",
+      "withheldFields": [
+        "name",
+        "address.line1",
+        "address.line2",
+        "address.postalCode"
+      ]
+    },
+    "siret": "00012345500008",
+    "siren": "000123455",
+    "vatNumber": "FR31000123455",
+    "legalForm": null,
+    "naf": null,
+    "address": {
+      "line1": "",
+      "line2": "",
+      "postalCode": "",
+      "city": "Paris",
+      "country": "FR"
+    },
+    "active": true
+  },
+  "warning": "The register does not publish some identity or address fields; obtain them from the customer documents."
+}

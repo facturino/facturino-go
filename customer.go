@@ -103,18 +103,24 @@ type CustomerLookupParams struct {
 	Query string `json:"query,omitempty"`
 }
 
-// SireneCompany holds the registry details resolved from the INSEE Sirene
-// database. It is NOT a stored customer — feed the fields you want into
-// CustomerParams to create one.
+// RegistryDisclosure explains protected lookup fields; it does not certify identity.
+type RegistryDisclosure struct {
+	Status         *string  `json:"status"`
+	WithheldFields []string `json:"withheldFields"`
+}
+
+// SireneCompany holds registry details, not a stored customer.
+// Feed the disclosed fields into CustomerParams to create one.
 type SireneCompany struct {
-	Name      string     `json:"name"`
-	SIRET     string     `json:"siret"`
-	SIREN     string     `json:"siren"`
-	VATNumber string     `json:"vatNumber"`
-	LegalForm *LegalForm `json:"legalForm"`
-	NAF       *NafCode   `json:"naf"`
-	Address   *Address   `json:"address"`
-	Active    bool       `json:"active"`
+	Disclosure *RegistryDisclosure `json:"disclosure,omitempty"`
+	Name       string              `json:"name"`
+	SIRET      string              `json:"siret"`
+	SIREN      string              `json:"siren"`
+	VATNumber  string              `json:"vatNumber"`
+	LegalForm  *LegalForm          `json:"legalForm"`
+	NAF        *NafCode            `json:"naf"`
+	Address    *Address            `json:"address"`
+	Active     bool                `json:"active"`
 }
 
 // SireneLookupResult is returned by CustomerService.Lookup. For a SIRET lookup,

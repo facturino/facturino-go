@@ -6,9 +6,22 @@ adheres to [Semantic Versioning](https://semver.org/) and
 
 ## [Unreleased]
 
+### Registry disclosure
+- Customer lookups expose `disclosure.status` and `disclosure.withheldFields`; protected names and addresses are empty, never invented. Older responses can omit disclosure.
+
 ### Added
 - Read-only seller routing: `einvoicing.senderRoutingIdentifier` and `submissionArtefact.sellerRoutingIdentifier`.
 - `payment.received` exposes nullable `paymentId` and `fr212`; historical events may omit them. Event amounts remain decimal euro strings, and `total_due` remains the invoice total. API date unchanged.
+
+## [2.9.0] - 2026-09-11
+
+### Added
+- Registry lookups report the fields the public registry withholds instead of
+  returning its non-disclosure placeholder as a name or an address.
+- `buyer_identity_not_disclosed`: refused when a customer, an invoice or a
+  credit note carries a registry placeholder as the buyer identity, at customer
+  write, at finalization and at deposit. A total cancellation credit note may
+  carry the corrected identity of the same customer.
 
 ## [2.8.0] - 2026-09-10
 
