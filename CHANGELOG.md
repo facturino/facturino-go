@@ -21,9 +21,29 @@ adheres to [Semantic Versioning](https://semver.org/) and
 - Webhook data exposes coded verdicts and document axes. Structured lifecycle
   entries expose optional `code` and `params`; historical details remain readable.
 
-### Changed
-- Nullable invoice/credit-note tracking values and payment timestamps/error codes
-  use pointers: nil preserves API null; dereference only after a nil check.
+### Changed — BREAKING for Go callers
+- Twenty-five fields the API can return as null moved from `string`/`int` to
+  pointers, including `Invoice.Number`, `CreditNote.Number`, `Customer.SIRET`,
+  `PAID`, `PAStatus`, `PAErrorCode`, `RejectionReason`, `RejectionCategory`,
+  `SentAt`, `DepositedAt` and `LastErrorCode`. A plain `string` could not tell
+  an API null from a legitimate empty value: a draft invoice has no number, and
+  it decoded as `""` like any other empty string. `nil` now means null.
+
+  This breaks compilation for code that read them as values. Dereference after a
+  nil check:
+
+  ```go
+  // before
+  fmt.Println(inv.Number)
+  // after
+  if inv.Number != nil {
+      fmt.Println(*inv.Number)
+  }
+  ```
+
+  Semantic versioning would have called for a major release. This shipped in a
+  minor one and 2.7.0 is already published; it is recorded here rather than
+  retracted, since the only consumer at this date is the Facturino demo.
 - `Event.DocumentData()` and `WebhookEvent.DocumentData()` provide a typed
   document projection while the original data map keeps unknown fields.
 - Signed webhooks read the server's `apiVersion` and `idempotencyKey` names.
