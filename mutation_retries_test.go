@@ -16,7 +16,7 @@ func TestMutationCommittedBeforeResponseLoss(t *testing.T) {
 	movements := map[string]int{}
 	var keys []string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		io.Copy(io.Discard, r.Body)
+		_, _ = io.Copy(io.Discard, r.Body)
 		mu.Lock()
 		defer mu.Unlock()
 		key := r.Header.Get("Idempotency-Key")
@@ -33,7 +33,7 @@ func TestMutationCommittedBeforeResponseLoss(t *testing.T) {
 			conn.Close()
 			return
 		}
-		json.NewEncoder(w).Encode(map[string]int{"id": movements[key]})
+		_ = json.NewEncoder(w).Encode(map[string]int{"id": movements[key]})
 	}))
 	defer server.Close()
 	client := New("fac_test_local", WithBaseURL(server.URL))
@@ -96,7 +96,7 @@ func TestRetryAfterOverBudgetReturns429(t *testing.T) {
 		calls++
 		w.Header().Set("Retry-After", "90")
 		w.WriteHeader(429)
-		io.WriteString(w, `{"error":{"type":"rate_limit_error","code":"rate_limit_exceeded","message":"Slow down"}}`)
+		_, _ = io.WriteString(w, `{"error":{"type":"rate_limit_error","code":"rate_limit_exceeded","message":"Slow down"}}`)
 	}))
 	defer server.Close()
 	client := New("fac_test_local", WithBaseURL(server.URL))
@@ -123,7 +123,7 @@ func TestExplicitKeyAndRetryAfterWaiting(t *testing.T) {
 		if time.Since(start) < 80*time.Millisecond {
 			t.Error("premature retry")
 		}
-		io.WriteString(w, `{}`)
+		_, _ = io.WriteString(w, `{}`)
 	}))
 	defer server.Close()
 	client := New("fac_test_local", WithBaseURL(server.URL), WithAutoIdempotency(false))
