@@ -132,10 +132,11 @@ type InvoicePaymentTerms struct {
 // amounts, stored under InvoiceFiles.CorrectedXMLPath; the archived Factur-X
 // is never rewritten.
 type InvoiceSubmissionArtefact struct {
-	RoutingIdentifier *string `json:"routingIdentifier,omitempty"`
-	Kind              string  `json:"kind"`
-	Path              string  `json:"path"`
-	GeneratedAt       string  `json:"generatedAt"`
+	SellerRoutingIdentifier *string `json:"sellerRoutingIdentifier,omitempty"`
+	RoutingIdentifier       *string `json:"routingIdentifier,omitempty"`
+	Kind                    string  `json:"kind"`
+	Path                    string  `json:"path"`
+	GeneratedAt             string  `json:"generatedAt"`
 	// CorrectedRules lists the rules the regeneration satisfied (e.g. BR-FR-08).
 	CorrectedRules []string `json:"correctedRules"`
 }
@@ -164,15 +165,16 @@ type InvoicePreviousSubmission struct {
 
 // InvoiceEinvoicing holds e-invoicing (PA) status.
 type InvoiceEinvoicing struct {
-	RoutingIdentifier   *string            `json:"routingIdentifier,omitempty"`
-	BuyerReachableAt    *string            `json:"buyerReachableAt,omitempty"`
-	DirectoryCheckedAt  *string            `json:"directoryCheckedAt,omitempty"`
-	EreportingPaymentID *string            `json:"ereportingPaymentId,omitempty"`
-	RejectionCode       *string            `json:"rejectionCode,omitempty"`
-	RejectionSource     *PaRejectionSource `json:"rejectionSource,omitempty"`
-	RejectionNote       *string            `json:"rejectionNote,omitempty"`
-	PAID                *string            `json:"paId"`
-	PAStatus            *string            `json:"paStatus"`
+	SenderRoutingIdentifier *string            `json:"senderRoutingIdentifier,omitempty"`
+	RoutingIdentifier       *string            `json:"routingIdentifier,omitempty"`
+	BuyerReachableAt        *string            `json:"buyerReachableAt,omitempty"`
+	DirectoryCheckedAt      *string            `json:"directoryCheckedAt,omitempty"`
+	EreportingPaymentID     *string            `json:"ereportingPaymentId,omitempty"`
+	RejectionCode           *string            `json:"rejectionCode,omitempty"`
+	RejectionSource         *PaRejectionSource `json:"rejectionSource,omitempty"`
+	RejectionNote           *string            `json:"rejectionNote,omitempty"`
+	PAID                    *string            `json:"paId"`
+	PAStatus                *string            `json:"paStatus"`
 	// PAStatusCode is the raw platform status code (e.g. "fr:200").
 	PAStatusCode    *string `json:"paStatusCode,omitempty"`
 	PATransactionID *string `json:"paTransactionId"`

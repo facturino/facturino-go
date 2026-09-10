@@ -80,27 +80,30 @@ type PaymentCreatedWebhookData struct {
 }
 
 type PaymentReceivedWebhookData struct {
-	ID                 *string                `json:"id,omitempty"`
-	Object             *string                `json:"object,omitempty"`
-	Status             *string                `json:"status,omitempty"`
-	PreviousStatus     *string                `json:"previous_status,omitempty"`
-	Livemode           *bool                  `json:"livemode,omitempty"`
-	Number             *string                `json:"number,omitempty"`
-	DocumentStatus     *string                `json:"documentStatus,omitempty"`
-	TransmissionStatus *string                `json:"transmissionStatus,omitempty"`
-	TransmissionDetail *string                `json:"transmissionDetail,omitempty"`
-	PaymentStatus      *string                `json:"paymentStatus,omitempty"`
-	PAErrorCode        *string                `json:"paErrorCode,omitempty"`
-	RejectionReason    *string                `json:"rejectionReason,omitempty"`
-	RejectionCategory  *string                `json:"rejectionCategory,omitempty"`
-	RejectionCode      *string                `json:"rejectionCode,omitempty"`
-	RejectionSource    *string                `json:"rejectionSource,omitempty"`
-	Metadata           map[string]interface{} `json:"metadata,omitempty"`
-	Amount             *string                `json:"amount,omitempty"`
-	TotalPaid          *string                `json:"total_paid,omitempty"`
-	TotalDue           *string                `json:"total_due,omitempty"`
-	Total              *string                `json:"total,omitempty"`
-	AmountDue          *string                `json:"amountDue,omitempty"`
+	// Optional for historical events; nil also represents unattributed changes.
+	PaymentID          *string                  `json:"paymentId,omitempty"`
+	FR212              *PaymentCollectionStatus `json:"fr212,omitempty"`
+	ID                 *string                  `json:"id,omitempty"`
+	Object             *string                  `json:"object,omitempty"`
+	Status             *string                  `json:"status,omitempty"`
+	PreviousStatus     *string                  `json:"previous_status,omitempty"`
+	Livemode           *bool                    `json:"livemode,omitempty"`
+	Number             *string                  `json:"number,omitempty"`
+	DocumentStatus     *string                  `json:"documentStatus,omitempty"`
+	TransmissionStatus *string                  `json:"transmissionStatus,omitempty"`
+	TransmissionDetail *string                  `json:"transmissionDetail,omitempty"`
+	PaymentStatus      *string                  `json:"paymentStatus,omitempty"`
+	PAErrorCode        *string                  `json:"paErrorCode,omitempty"`
+	RejectionReason    *string                  `json:"rejectionReason,omitempty"`
+	RejectionCategory  *string                  `json:"rejectionCategory,omitempty"`
+	RejectionCode      *string                  `json:"rejectionCode,omitempty"`
+	RejectionSource    *string                  `json:"rejectionSource,omitempty"`
+	Metadata           map[string]interface{}   `json:"metadata,omitempty"`
+	Amount             *string                  `json:"amount,omitempty"`
+	TotalPaid          *string                  `json:"total_paid,omitempty"`
+	TotalDue           *string                  `json:"total_due,omitempty"`
+	Total              *string                  `json:"total,omitempty"`
+	AmountDue          *string                  `json:"amountDue,omitempty"`
 }
 
 type EreportingWebhookData struct {

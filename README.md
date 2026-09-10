@@ -791,7 +791,7 @@ thing".
 
 - **Same key + same canonical body** — the first 2xx response is replayed
   verbatim, and the operation is not executed a second time.
-- **Same key + different body** — `409 idempotency_error`. A key belongs to a
+- **Same key + different body** — `409 conflict`. A key belongs to a
   request, not to an endpoint.
 - **Different keys** — two distinct operations, even with byte-identical bodies.
   Two requests describing the same operation are **not** deduplicated

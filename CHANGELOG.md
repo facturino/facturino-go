@@ -4,6 +4,29 @@ All notable changes to the Facturino Go SDK are documented here. This project
 adheres to [Semantic Versioning](https://semver.org/) and
 [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased]
+
+### Added
+- Read-only seller routing: `einvoicing.senderRoutingIdentifier` and `submissionArtefact.sellerRoutingIdentifier`.
+- `payment.received` exposes nullable `paymentId` and `fr212`; historical events may omit them. Event amounts remain decimal euro strings, and `total_due` remains the invoice total. API date unchanged.
+
+## [2.8.0] - 2026-09-10
+
+### Added
+- `einvoicing.senderRoutingIdentifier` and
+  `einvoicing.submissionArtefact.sellerRoutingIdentifier`: the address the
+  platform registered for the seller, used for the deposit, read-only.
+- `payment.received` now names the payment that triggered it (`paymentId`) and
+  carries its collection state (`fr212`). Movements recorded before this release
+  stay `null` rather than guessed.
+
+### Notes
+- `total_due` in `payment.received` is the invoice total, not the balance; the
+  balance is `amountDue`. That event uses decimal euro strings while the REST
+  API uses integer centimes.
+- Rate limit headers are now present on every `/v1` response, with the value
+  `not_applied` where no limit applies.
+
 ## [2.7.0] - 2026-09-10
 
 
