@@ -4,6 +4,42 @@ All notable changes to the Facturino Go SDK are documented here. This project
 adheres to [Semantic Versioning](https://semver.org/) and
 [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.7.0] - 2026-09-10
+
+
+### Added
+- Code-based rejection fields: `rejectionCode`, `rejectionSource`,
+  `rejectionNote`, verbatim `rejectionReason`, and eleven rejection categories,
+  including `addressing_error` and `other`. Closed attempts retain their
+  rejection fields in `previousSubmissions`.
+- Active recipient `routingIdentifier`, including the submitted CII artefact,
+  and directory follow-up timestamps `buyerReachableAt` / `directoryCheckedAt`.
+- Complete payment `fr212` state, including `awaiting_deposit`, `sentAt`,
+  `lastErrorCode`, `lastErrorReason` and `updatedAt`.
+- Advisory `BuyerNatureWarning` arrays on customers and tax decisions;
+  `relatedInvoiceNumber` on credit notes and their events.
+- Webhook data exposes coded verdicts and document axes. Structured lifecycle
+  entries expose optional `code` and `params`; historical details remain readable.
+
+### Changed
+- Nullable invoice/credit-note tracking values and payment timestamps/error codes
+  use pointers: nil preserves API null; dereference only after a nil check.
+- `Event.DocumentData()` and `WebhookEvent.DocumentData()` provide a typed
+  document projection while the original data map keeps unknown fields.
+- Signed webhooks read the server's `apiVersion` and `idempotencyKey` names.
+
+### Transport and response corrections (2026-09-09)
+
+- Correct `Payment.recorded_by` (api/app/system), nullable responses, and event-family payloads; cover the same contract fixtures across all four SDKs.
+
+- Generate a stable idempotency key once per POST call and preserve it through
+  transport retries; never automatically retry an unkeyed POST. Explicit caller
+  keys take precedence. A new call receives a new key: persist and pass your own
+  key for retries across separate calls or process restarts.
+- Respect the full `Retry-After`, including HTTP dates, within a default 60-second
+  cumulative retry waiting budget; return the original HTTP error when the delay
+  exceeds the remaining budget. Configure `WithAutoIdempotency(false)` and `WithRetryBudget` (duration).
+
 ## [2.6.0] - 2026-09-07
 
 ### Added

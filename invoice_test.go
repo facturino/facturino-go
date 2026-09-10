@@ -73,8 +73,8 @@ func TestInvoiceGet(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if inv.Number != "FAC-2026-0001" {
-		t.Errorf("Number = %q, want %q", inv.Number, "FAC-2026-0001")
+	if inv.Number == nil || *inv.Number != "FAC-2026-0001" {
+		t.Errorf("Number = %v, want %q", inv.Number, "FAC-2026-0001")
 	}
 }
 
@@ -149,8 +149,8 @@ func TestInvoiceUpdate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if inv.Notes != "Updated notes" {
-		t.Errorf("Notes = %q, want %q", inv.Notes, "Updated notes")
+	if inv.Notes == nil || *inv.Notes != "Updated notes" {
+		t.Errorf("Notes = %v, want %q", inv.Notes, "Updated notes")
 	}
 }
 
@@ -581,8 +581,8 @@ func TestCustomerCreateAndGet(t *testing.T) {
 	if cus.Name != "ACME Corp" {
 		t.Errorf("Name = %q, want %q", cus.Name, "ACME Corp")
 	}
-	if cus.SIRET != "12345678901234" {
-		t.Errorf("SIRET = %q, want %q", cus.SIRET, "12345678901234")
+	if cus.SIRET == nil || *cus.SIRET != "12345678901234" {
+		t.Errorf("SIRET = %v, want %q", cus.SIRET, "12345678901234")
 	}
 }
 

@@ -1,0 +1,129 @@
+{
+  "id": "crn_c6_fixture",
+  "object": "credit_note",
+  "companyId": "cmp_test",
+  "customer": {
+    "ref": "cus_abc",
+    "snapshot": {
+      "name": "Client SA"
+    }
+  },
+  "relatedInvoiceId": "inv_orig",
+  "relatedInvoiceNumber": "FAC-00001",
+  "status": "draft",
+  "documentStatus": "draft",
+  "transmissionStatus": "not_applicable",
+  "paymentStatus": "unpaid",
+  "transmissionDetail": null,
+  "originalInvoiceId": "inv_orig",
+  "originalTaxDecisionId": "taxdec_orig",
+  "taxSnapshot": {
+    "taxDecisionId": "taxdec_orig",
+    "taxSource": "facturino",
+    "priceMode": "tax_exclusive",
+    "currency": "eur",
+    "lines": [
+      {
+        "lineRef": "l1",
+        "documentLineId": "li_c6_fixture",
+        "description": "Prestation l1",
+        "category": "services",
+        "effectiveCategory": "services",
+        "quantity": "4",
+        "unitAmountCents": 12500,
+        "discount": null,
+        "rateCategory": "standard",
+        "treatment": "domestic_taxable",
+        "vatCategoryCode": "S",
+        "vatexCode": null,
+        "legalMention": null,
+        "rateCentipercent": 2000,
+        "rateBasis": "territory_band",
+        "placeOfSupply": "FR-MET",
+        "amountHTCents": 50000,
+        "amountVATCents": 10000,
+        "amountTTCCents": 60000,
+        "invoiceChannel": "none",
+        "transactionReporting": "none",
+        "paymentReporting": "none"
+      }
+    ],
+    "totals": {
+      "totalHTCents": 50000,
+      "totalVATCents": 10000,
+      "totalTTCCents": 60000
+    },
+    "amountToChargeCents": 60000,
+    "invoiceChannel": "none",
+    "transactionReporting": "none",
+    "paymentReporting": "none",
+    "vatBreakdown": [
+      {
+        "rateCentipercent": 2000,
+        "categoryCode": "S",
+        "vatexCode": null,
+        "baseCents": 50000,
+        "amountCents": 10000
+      }
+    ]
+  },
+  "taxSource": "facturino",
+  "creditNoteType": "total",
+  "number": null,
+  "currency": "eur",
+  "reasonCode": "defective_goods",
+  "reason": "Returned damaged",
+  "items": [
+    {
+      "id": "li_c6_fixture",
+      "description": "Prestation l1",
+      "quantity": "4",
+      "unit": "hour",
+      "kind": "service",
+      "unitPrice": 12500,
+      "priceMode": "tax_exclusive",
+      "discountPercent": 0,
+      "lineAmount": 50000,
+      "vatRate": 2000,
+      "vatCode": "S",
+      "vatAmount": 10000,
+      "lineTotal": 60000,
+      "product": null,
+      "taxLineRef": "l1"
+    }
+  ],
+  "totals": {
+    "totalHT": 50000,
+    "discountAmount": 0,
+    "vatBreakdown": [
+      {
+        "rate": 2000,
+        "code": "S",
+        "base": 50000,
+        "amount": 10000
+      }
+    ],
+    "totalVAT": 10000,
+    "totalTTC": 60000,
+    "amountDue": 0,
+    "amountPaid": 0
+  },
+  "dates": {
+    "issued": "2026-05-15"
+  },
+  "archive": null,
+  "lifecycle": [
+    {
+      "status": "draft",
+      "timestamp": "2026-09-09T12:00:00.000Z",
+      "source": "user",
+      "code": "statuses.draft.detail",
+      "params": {},
+      "details": "Brouillon"
+    }
+  ],
+  "processed": false,
+  "livemode": false,
+  "created": "2026-09-09T12:00:00.000Z",
+  "updated": "2026-09-09T12:00:00.000Z"
+}

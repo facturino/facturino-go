@@ -1,0 +1,13 @@
+{
+  "id": "pay_c6_fixture",
+  "object": "payment",
+  "amount": 50000,
+  "method": "transfer",
+  "reference": "TX-2026-0001",
+  "paidAt": "2026-05-10T12:00:00.000Z",
+  "recorded_by": "api",
+  "created": "2026-09-09T12:00:00.000Z",
+  "companyId": "cmp_test",
+  "invoiceId": "inv_1",
+  "livemode": false
+}

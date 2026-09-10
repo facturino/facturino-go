@@ -1,0 +1,30 @@
+{
+  "warnings": [
+    {
+      "code": "buyer_nature_suspect",
+      "message": "This customer appears to be a business. Without a SIRET, the invoice is routed to e-reporting instead of e-invoicing. Check the customer type and registration details.",
+      "param": "name"
+    }
+  ],
+  "id": "cus_c6_fixture",
+  "object": "customer",
+  "companyId": "cmp_test",
+  "livemode": false,
+  "name": "SAS DÀ MOVE AJACCIO",
+  "legalForm": null,
+  "naf": null,
+  "address": {
+    "line1": "8 rue de Londres",
+    "postalCode": "75009",
+    "city": "Paris",
+    "country": "FR"
+  },
+  "type": "individual",
+  "balance": 0,
+  "currency": "eur",
+  "siretVerified": false,
+  "vatVerified": false,
+  "active": true,
+  "created": "2026-09-09T12:00:00.000Z",
+  "updated": "2026-09-09T12:00:00.000Z"
+}

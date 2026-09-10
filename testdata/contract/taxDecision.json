@@ -1,0 +1,140 @@
+{
+  "id": "taxdec_c6_fixture",
+  "object": "tax_decision",
+  "livemode": false,
+  "companyId": "cmp_test",
+  "taxSource": "facturino",
+  "euB2cDestination": null,
+  "customerId": "cus_fr_business",
+  "customer": {
+    "customerId": "cus_fr_business",
+    "name": "Client Démo",
+    "nature": "business",
+    "natureBasis": "declared_business_with_registration",
+    "territoryId": "FR-MET",
+    "territoryKind": "fr_mainland",
+    "declaredCountry": "FR",
+    "declaredPostalCode": "75002",
+    "legalRegistrationId": "12345678900011",
+    "vatNumber": null,
+    "crossBorderTaxableStatus": "evidenced",
+    "businessStatusBasis": "french_legal_registration"
+  },
+  "sellerProfileId": "stp_1",
+  "sellerProfileRevision": 1,
+  "decidedAt": "2026-09-15T10:00:00.000Z",
+  "effectiveAt": "2026-09-15",
+  "expiresAt": "2026-09-16T10:00:00.000Z",
+  "checkoutValidityPolicy": "checkout-validity-v1",
+  "rulesVersion": "fr-vat-2021-07-01",
+  "reportingCalendar": "fr-einvoicing-2026-09-01",
+  "currency": "eur",
+  "priceMode": "tax_exclusive",
+  "roundingPolicy": "fr-line-half-up-v1",
+  "requestFingerprint": "sha256:dd8fef8fa1e4e8cc27931f60f1a91f7009e80226d25a7ca9372dc4770c65d889",
+  "operationFingerprint": "sha256:405afd527a1e0763eef4c1c5a95eff19fafb135e259926f379659e27cbf47e4a",
+  "foreignTaxReviewRequired": false,
+  "issues": [],
+  "obligationReasons": [
+    {
+      "axis": "invoiceChannel",
+      "code": "domestic_b2b",
+      "reference": "CGI art. 289 bis",
+      "message": "Operation between two taxable persons established in the reform perimeter (FR-MET -> FR-MET)"
+    },
+    {
+      "axis": "paymentReporting",
+      "code": "lifecycle_fr212",
+      "reference": "CGI art. 290 A",
+      "message": "Payment data travel through the seller-side \"Encaissée\" lifecycle status of the electronic invoice"
+    }
+  ],
+  "locationEvidence": [],
+  "nonEuBusinessEvidence": null,
+  "vies": null,
+  "retryOfTaxDecisionId": null,
+  "created": "2026-09-09T12:00:00.000Z",
+  "updated": "2026-09-09T12:00:00.000Z",
+  "status": "final",
+  "invoiceChannel": "einvoicing",
+  "transactionReporting": "none",
+  "paymentReporting": "fr212",
+  "settledObligations": null,
+  "warnings": [],
+  "sellerProfile": {
+    "id": "stp_1",
+    "object": "seller_tax_profile",
+    "companyId": "cmp_test",
+    "livemode": false,
+    "revision": 1,
+    "establishment": {
+      "country": "FR",
+      "postalCode": "75001"
+    },
+    "additionalEstablishments": [],
+    "vatRegime": "normal_monthly",
+    "franchiseEnBase": false,
+    "vatOnDebits": false,
+    "sizeCategory": "large",
+    "voluntaryEarlyAdoption": false,
+    "supportedSupplyCategories": [
+      "goods",
+      "services",
+      "electronically_supplied_services",
+      "deposit",
+      "ancillary_costs"
+    ],
+    "priceMode": "tax_exclusive",
+    "rulesVersion": "fr-vat-2021-07-01",
+    "effectiveFrom": "2021-07-01",
+    "effectiveTo": null,
+    "created": "2026-09-09T12:00:00.000Z",
+    "updated": "2026-09-09T12:00:00.000Z"
+  },
+  "lines": [
+    {
+      "reference": "line-1",
+      "description": "Abonnement mensuel",
+      "category": "services",
+      "relatedCategory": null,
+      "rateCategory": "standard",
+      "placeOfSupplyRule": "general",
+      "goodsMovement": null,
+      "quantity": "1",
+      "discount": null,
+      "effectiveCategory": "services",
+      "treatment": "domestic_taxable",
+      "vatCategoryCode": "S",
+      "vatexCode": null,
+      "legalMention": "",
+      "rateCentipercent": 2000,
+      "rateBasis": "territory_band",
+      "placeOfSupply": "FR-MET",
+      "placeOfSupplyReference": "Directive 2006/112/CE art. 44 ; CGI art. 259-1°",
+      "treatmentReference": "CGI art. 278 ; impots.gouv.fr, prestations métropole/DOM (16/06/2026)",
+      "invoiceChannel": "einvoicing",
+      "transactionReporting": "none",
+      "paymentReporting": "fr212",
+      "unitAmount": 10000,
+      "amountHT": 10000,
+      "amountVAT": 2000,
+      "amountTTC": 12000
+    }
+  ],
+  "totals": {
+    "totalHT": 10000,
+    "totalVAT": 2000,
+    "totalTTC": 12000
+  },
+  "vatBreakdown": [
+    {
+      "rateCentipercent": 2000,
+      "categoryCode": "S",
+      "vatexCode": null,
+      "base": 10000,
+      "amount": 2000
+    }
+  ],
+  "amountToCharge": 12000,
+  "expired": false
+}

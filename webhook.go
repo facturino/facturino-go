@@ -18,17 +18,22 @@ type WebhookEvent struct {
 	ID         string                 `json:"id"`
 	Object     string                 `json:"object"`
 	Type       string                 `json:"type"`
-	APIVersion string                 `json:"api_version"`
+	APIVersion string                 `json:"apiVersion"`
 	Livemode   bool                   `json:"livemode"`
 	Created    string                 `json:"created"`
 	Data       map[string]interface{} `json:"data"`
 	Request    *WebhookRequest        `json:"request,omitempty"`
 }
 
+// DocumentData reads the document projection while retaining all original data.
+func (e *WebhookEvent) DocumentData() (*DocumentEventData, error) {
+	return decodeDocumentEventData(e.Data)
+}
+
 // WebhookRequest holds metadata about the originating API request.
 type WebhookRequest struct {
 	ID             string `json:"id,omitempty"`
-	IdempotencyKey string `json:"idempotency_key,omitempty"`
+	IdempotencyKey string `json:"idempotencyKey,omitempty"`
 }
 
 // VerifyWebhookSignature verifies the HMAC-SHA256 signature of a webhook payload

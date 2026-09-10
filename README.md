@@ -8,7 +8,7 @@ Go client library for the [Facturino](https://facturino.com) API — developer-f
 ## Installation
 
 ```bash
-go get github.com/facturino/facturino-go/v2@v2.6.0
+go get github.com/facturino/facturino-go/v2@v2.7.0
 ```
 
 Requires Go 1.21+. No external dependencies.

@@ -8,17 +8,22 @@ import (
 
 // Event is a webhook event record.
 type Event struct {
-	ID         string                 `json:"id"`
-	Object     string                 `json:"object"`
-	Livemode   bool                   `json:"livemode"`
-	Type       string                 `json:"type"`
-	APIVersion string                 `json:"apiVersion"`
-	Data       map[string]interface{} `json:"data"`
-	Request    *EventRequest          `json:"request,omitempty"`
+	RawResponse `json:"-"`
+	CompanyID   string                      `json:"companyId,omitempty"`
+	EndpointID  string                      `json:"endpointId,omitempty"`
+	Deliveries  map[string]EndpointDelivery `json:"deliveries,omitempty"`
+	ExpireAt    *string                     `json:"expireAt,omitempty"`
+	ID          string                      `json:"id"`
+	Object      string                      `json:"object"`
+	Livemode    bool                        `json:"livemode"`
+	Type        string                      `json:"type"`
+	APIVersion  string                      `json:"apiVersion"`
+	Data        map[string]interface{}      `json:"data"`
+	Request     *EventRequest               `json:"request,omitempty"`
 
 	Delivered bool              `json:"delivered"`
 	Attempts  []*WebhookAttempt `json:"attempts"`
-	NextRetry string            `json:"nextRetry"`
+	NextRetry *string           `json:"nextRetry"`
 
 	Created string `json:"created"`
 	Updated string `json:"updated"`
@@ -32,8 +37,9 @@ type EventRequest struct {
 
 // WebhookAttempt is a single delivery attempt.
 type WebhookAttempt struct {
+	EndpointID string `json:"endpointId,omitempty"`
 	Timestamp  string `json:"timestamp"`
-	HTTPStatus int    `json:"httpStatus"`
+	HTTPStatus *int   `json:"httpStatus"`
 	Error      string `json:"error,omitempty"`
 	Duration   int    `json:"duration,omitempty"`
 }
@@ -137,4 +143,53 @@ func decodeEvent(raw json.RawMessage) (*Event, error) {
 	var e Event
 	err := json.Unmarshal(raw, &e)
 	return &e, err
+}
+
+// DocumentEventData is the typed document projection in invoice and credit-note
+// events. Event.Data remains a map to preserve fields from other event families.
+type DocumentEventData struct {
+	ID                   string                 `json:"id,omitempty"`
+	Object               string                 `json:"object,omitempty"`
+	Number               *string                `json:"number,omitempty"`
+	Status               string                 `json:"status,omitempty"`
+	PreviousStatus       string                 `json:"previous_status,omitempty"`
+	Livemode             bool                   `json:"livemode,omitempty"`
+	DocumentStatus       string                 `json:"documentStatus,omitempty"`
+	TransmissionStatus   string                 `json:"transmissionStatus,omitempty"`
+	TransmissionDetail   *string                `json:"transmissionDetail,omitempty"`
+	PaymentStatus        string                 `json:"paymentStatus,omitempty"`
+	PAErrorCode          *string                `json:"paErrorCode,omitempty"`
+	RejectionReason      *string                `json:"rejectionReason,omitempty"`
+	RejectionCategory    *PaRejectionCategory   `json:"rejectionCategory,omitempty"`
+	RejectionCode        *string                `json:"rejectionCode,omitempty"`
+	RejectionSource      *PaRejectionSource     `json:"rejectionSource,omitempty"`
+	RelatedInvoiceID     *string                `json:"relatedInvoiceId,omitempty"`
+	RelatedInvoiceNumber *string                `json:"relatedInvoiceNumber,omitempty"`
+	Metadata             map[string]interface{} `json:"metadata,omitempty"`
+}
+
+// DocumentData reads document fields without discarding the original data map.
+func (e *Event) DocumentData() (*DocumentEventData, error) {
+	return decodeDocumentEventData(e.Data)
+}
+
+func decodeDocumentEventData(data map[string]interface{}) (*DocumentEventData, error) {
+	raw, err := json.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
+	var result DocumentEventData
+	if err := json.Unmarshal(raw, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+// EndpointDelivery is a REST delivery record; signed payloads omit it.
+type EndpointDelivery struct {
+	Delivered    bool             `json:"delivered"`
+	Attempts     []WebhookAttempt `json:"attempts"`
+	NextRetry    *string          `json:"nextRetry"`
+	AttemptCount *int             `json:"attemptCount,omitempty"`
+	Generation   *int             `json:"generation,omitempty"`
 }

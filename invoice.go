@@ -10,9 +10,17 @@ import (
 
 // Invoice is a Facturino invoice.
 type Invoice struct {
-	ID     string `json:"id"`
-	Object string `json:"object"`
-	Type   string `json:"type"`
+	RawResponse         `json:"-"`
+	Deposits            []json.RawMessage `json:"deposits,omitempty"`
+	PaymentSchedule     []json.RawMessage `json:"paymentSchedule,omitempty"`
+	PurchaseOrderNumber *string           `json:"purchaseOrderNumber,omitempty"`
+	ReminderTaskIds     []json.RawMessage `json:"reminderTaskIds,omitempty"`
+	Processed           bool              `json:"processed,omitempty"`
+	Anonymized          bool              `json:"anonymized,omitempty"`
+	AnonymizedAt        *string           `json:"anonymizedAt,omitempty"`
+	ID                  string            `json:"id"`
+	Object              string            `json:"object"`
+	Type                string            `json:"type"`
 	// Status is the summary projection of the three axes below. It stays
 	// populated and supported; prefer the axes when you need to tell
 	// transmission from collection.
@@ -46,7 +54,7 @@ type Invoice struct {
 	// references are assigned server-side at conversion, and the decision must
 	// state exactly the operation the draft carries.
 	CommercialDraft *CommercialDraft `json:"commercialDraft,omitempty"`
-	Number          string           `json:"number"`
+	Number          *string          `json:"number"`
 	Currency        string           `json:"currency"`
 	Livemode        bool             `json:"livemode"`
 
@@ -61,8 +69,8 @@ type Invoice struct {
 	Files       *InvoiceFiles        `json:"files"`
 	Portal      *InvoicePortal       `json:"portal"`
 
-	Notes         string `json:"notes"`
-	LegalMentions string `json:"legalMentions"`
+	Notes         *string `json:"notes"`
+	LegalMentions *string `json:"legalMentions"`
 
 	Lifecycle []*LifecycleEntry `json:"lifecycle"`
 
@@ -124,9 +132,10 @@ type InvoicePaymentTerms struct {
 // amounts, stored under InvoiceFiles.CorrectedXMLPath; the archived Factur-X
 // is never rewritten.
 type InvoiceSubmissionArtefact struct {
-	Kind        string `json:"kind"`
-	Path        string `json:"path"`
-	GeneratedAt string `json:"generatedAt"`
+	RoutingIdentifier *string `json:"routingIdentifier,omitempty"`
+	Kind              string  `json:"kind"`
+	Path              string  `json:"path"`
+	GeneratedAt       string  `json:"generatedAt"`
 	// CorrectedRules lists the rules the regeneration satisfied (e.g. BR-FR-08).
 	CorrectedRules []string `json:"correctedRules"`
 }
@@ -135,43 +144,53 @@ type InvoiceSubmissionArtefact struct {
 // platform: a rejected deposit resent under the same number opens a new
 // attempt whose identifiers are the live ones on InvoiceEinvoicing.
 type InvoicePreviousSubmission struct {
-	PAID             string `json:"paId"`
-	PATransactionID  string `json:"paTransactionId"`
-	PAIdempotencyKey string `json:"paIdempotencyKey"`
-	PAStatus         string `json:"paStatus"`
-	PAStatusCode     string `json:"paStatusCode"`
-	PAErrorCode      string `json:"paErrorCode"`
-	RejectionReason  string `json:"rejectionReason"`
+	RejectionCode    *string            `json:"rejectionCode,omitempty"`
+	RejectionSource  *PaRejectionSource `json:"rejectionSource,omitempty"`
+	RejectionNote    *string            `json:"rejectionNote,omitempty"`
+	PAID             *string            `json:"paId"`
+	PATransactionID  *string            `json:"paTransactionId"`
+	PAIdempotencyKey *string            `json:"paIdempotencyKey"`
+	PAStatus         *string            `json:"paStatus"`
+	PAStatusCode     *string            `json:"paStatusCode"`
+	PAErrorCode      *string            `json:"paErrorCode"`
+	RejectionReason  *string            `json:"rejectionReason"`
 	// RejectionCategory is the server's reading of the rejection (see
 	// InvoiceEinvoicing.RejectionCategory).
-	RejectionCategory string `json:"rejectionCategory,omitempty"`
-	SentAt            string `json:"sentAt"`
+	RejectionCategory *PaRejectionCategory `json:"rejectionCategory,omitempty"`
+	SentAt            *string              `json:"sentAt"`
 	// ClosedAt is when the next attempt was opened.
 	ClosedAt string `json:"closedAt"`
 }
 
 // InvoiceEinvoicing holds e-invoicing (PA) status.
 type InvoiceEinvoicing struct {
-	PAID     string `json:"paId"`
-	PAStatus string `json:"paStatus"`
+	RoutingIdentifier   *string            `json:"routingIdentifier,omitempty"`
+	BuyerReachableAt    *string            `json:"buyerReachableAt,omitempty"`
+	DirectoryCheckedAt  *string            `json:"directoryCheckedAt,omitempty"`
+	EreportingPaymentID *string            `json:"ereportingPaymentId,omitempty"`
+	RejectionCode       *string            `json:"rejectionCode,omitempty"`
+	RejectionSource     *PaRejectionSource `json:"rejectionSource,omitempty"`
+	RejectionNote       *string            `json:"rejectionNote,omitempty"`
+	PAID                *string            `json:"paId"`
+	PAStatus            *string            `json:"paStatus"`
 	// PAStatusCode is the raw platform status code (e.g. "fr:200").
-	PAStatusCode    string `json:"paStatusCode,omitempty"`
-	PATransactionID string `json:"paTransactionId"`
-	PAErrorCode     string `json:"paErrorCode"`
+	PAStatusCode    *string `json:"paStatusCode,omitempty"`
+	PATransactionID *string `json:"paTransactionId"`
+	PAErrorCode     *string `json:"paErrorCode"`
 	// RejectionReason is the platform's reason for a rejection, whatever
 	// channel it arrived through; RefusalReason is the buyer's reason for a refusal.
-	RejectionReason string `json:"rejectionReason,omitempty"`
+	RejectionReason *string `json:"rejectionReason,omitempty"`
 	// RejectionCategory is the server's reading of a rejection or a refusal:
-	// buyer_not_in_directory, format_invalid, semantic_error, duplicate,
+	// buyer_not_in_directory, addressing_error, other, format_invalid, semantic_error, duplicate,
 	// platform_auth, platform_unavailable, refused_by_buyer, suspended, unknown.
-	// Empty once a new attempt is opened.
-	RejectionCategory string `json:"rejectionCategory,omitempty"`
-	RefusalReason     string `json:"refusalReason,omitempty"`
-	PAIdempotencyKey  string `json:"paIdempotencyKey"`
-	PeppolDeliveryID  string `json:"peppolDeliveryId"`
-	EreportingID      string `json:"ereportingId"`
-	SentAt            string `json:"sentAt"`
-	TrackingID        string `json:"trackingId"`
+	// Nil once a new attempt is opened.
+	RejectionCategory *PaRejectionCategory `json:"rejectionCategory,omitempty"`
+	RefusalReason     *string              `json:"refusalReason,omitempty"`
+	PAIdempotencyKey  *string              `json:"paIdempotencyKey"`
+	PeppolDeliveryID  *string              `json:"peppolDeliveryId"`
+	EreportingID      *string              `json:"ereportingId"`
+	SentAt            *string              `json:"sentAt"`
+	TrackingID        *string              `json:"trackingId"`
 
 	SubmissionArtefact *InvoiceSubmissionArtefact `json:"submissionArtefact,omitempty"`
 	// PreviousSubmissions lists the closed attempts, oldest first; absent until
@@ -274,10 +293,12 @@ type Totals struct {
 
 // LifecycleEntry records a status change in the audit trail.
 type LifecycleEntry struct {
-	Status    string `json:"status"`
-	Timestamp string `json:"timestamp"`
-	Source    string `json:"source"`
-	Details   string `json:"details,omitempty"`
+	Code      string                 `json:"code,omitempty"`
+	Params    map[string]interface{} `json:"params,omitempty"`
+	Status    string                 `json:"status"`
+	Timestamp string                 `json:"timestamp"`
+	Source    string                 `json:"source"`
+	Details   string                 `json:"details,omitempty"`
 }
 
 // ItemParams defines a line item. Quantity is a decimal string (e.g. "2.5").
@@ -938,3 +959,29 @@ func decodeInvoice(raw json.RawMessage) (*Invoice, error) {
 	err := json.Unmarshal(raw, &inv)
 	return &inv, err
 }
+
+// PaRejectionCategory is the server's code-based reading of a verdict.
+type PaRejectionCategory string
+
+const (
+	PaRejectionBuyerNotInDirectory PaRejectionCategory = "buyer_not_in_directory"
+	PaRejectionAddressingError     PaRejectionCategory = "addressing_error"
+	PaRejectionOther               PaRejectionCategory = "other"
+	PaRejectionFormatInvalid       PaRejectionCategory = "format_invalid"
+	PaRejectionSemanticError       PaRejectionCategory = "semantic_error"
+	PaRejectionDuplicate           PaRejectionCategory = "duplicate"
+	PaRejectionPlatformAuth        PaRejectionCategory = "platform_auth"
+	PaRejectionPlatformUnavailable PaRejectionCategory = "platform_unavailable"
+	PaRejectionRefusedByBuyer      PaRejectionCategory = "refused_by_buyer"
+	PaRejectionSuspended           PaRejectionCategory = "suspended"
+	PaRejectionUnknown             PaRejectionCategory = "unknown"
+)
+
+// PaRejectionSource names who issued the verdict, without guessing from text.
+type PaRejectionSource string
+
+const (
+	PaRejectionSourcePlatform  PaRejectionSource = "platform"
+	PaRejectionSourceBuyer     PaRejectionSource = "buyer"
+	PaRejectionSourceFacturino PaRejectionSource = "facturino"
+)

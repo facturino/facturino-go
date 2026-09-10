@@ -7,6 +7,7 @@ package facturino
 import (
 	"context"
 	"net/http"
+	"time"
 )
 
 // Client is the entry point for the Facturino API.
@@ -45,9 +46,11 @@ type Client struct {
 type ClientOption func(*clientConfig)
 
 type clientConfig struct {
-	baseURL    string
-	httpClient *http.Client
-	maxRetries int
+	baseURL         string
+	httpClient      *http.Client
+	maxRetries      int
+	autoIdempotency bool
+	retryBudget     time.Duration
 }
 
 // WithBaseURL overrides the default API base URL.
@@ -72,16 +75,37 @@ func WithMaxRetries(n int) ClientOption {
 	}
 }
 
+// WithAutoIdempotency controls automatic stable POST keys (default true).
+// POST calls without a key are never automatically retried.
+func WithAutoIdempotency(enabled bool) ClientOption {
+	return func(c *clientConfig) { c.autoIdempotency = enabled }
+}
+
+// WithRetryBudget sets the maximum cumulative retry waiting time (default 60s).
+// A Retry-After exceeding the remaining budget returns the HTTP error immediately.
+func WithRetryBudget(budget time.Duration) ClientOption {
+	return func(c *clientConfig) {
+		if budget < 0 {
+			budget = 0
+		}
+		c.retryBudget = budget
+	}
+}
+
 // New creates a Facturino API client. Use fac_test_ keys for sandbox, fac_live_ for production.
 func New(apiKey string, opts ...ClientOption) *Client {
 	cfg := &clientConfig{
-		maxRetries: defaultMaxRetries,
+		maxRetries:      defaultMaxRetries,
+		autoIdempotency: true,
+		retryBudget:     60 * time.Second,
 	}
 	for _, opt := range opts {
 		opt(cfg)
 	}
 
 	hc := newHTTPClient(apiKey, cfg.baseURL, cfg.httpClient, cfg.maxRetries)
+	hc.autoIdempotency = cfg.autoIdempotency
+	hc.retryBudget = cfg.retryBudget
 	return buildClient(hc)
 }
 

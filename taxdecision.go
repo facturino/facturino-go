@@ -19,9 +19,11 @@ const MaxIdempotencyKeyLength = 255
 // unsupported, Totals and AmountToCharge are nil — never zero: absent is not
 // "nothing to charge".
 type TaxDecision struct {
-	ID       string `json:"id"`
-	Object   string `json:"object"`
-	Livemode bool   `json:"livemode"`
+	RawResponse `json:"-"`
+	Warnings    []*BuyerNatureWarning `json:"warnings,omitempty"`
+	ID          string                `json:"id"`
+	Object      string                `json:"object"`
+	Livemode    bool                  `json:"livemode"`
 
 	CompanyID string `json:"companyId"`
 	// Status is "final", "pending_verification" or "unsupported".
@@ -110,7 +112,7 @@ type TaxDecision struct {
 
 	// RetryOfTaxDecisionID names the decision this one retries after the
 	// missing facts were supplied.
-	RetryOfTaxDecisionID string `json:"retryOfTaxDecisionId,omitempty"`
+	RetryOfTaxDecisionID *string `json:"retryOfTaxDecisionId,omitempty"`
 
 	Created string `json:"created"`
 	Updated string `json:"updated"`

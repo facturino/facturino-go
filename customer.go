@@ -7,14 +7,17 @@ import (
 
 // Customer is a buyer.
 type Customer struct {
-	ID       string `json:"id"`
-	Object   string `json:"object"`
-	Livemode bool   `json:"livemode"`
+	RawResponse `json:"-"`
+	CompanyId   string                `json:"companyId,omitempty"`
+	Warnings    []*BuyerNatureWarning `json:"warnings,omitempty"`
+	ID          string                `json:"id"`
+	Object      string                `json:"object"`
+	Livemode    bool                  `json:"livemode"`
 
 	Name      string     `json:"name"`
-	SIRET     string     `json:"siret,omitempty"`
+	SIRET     *string    `json:"siret,omitempty"`
 	SIREN     string     `json:"siren,omitempty"`
-	VATNumber string     `json:"vatNumber,omitempty"`
+	VATNumber *string    `json:"vatNumber,omitempty"`
 	LegalForm *LegalForm `json:"legalForm,omitempty"`
 	NAF       *NafCode   `json:"naf,omitempty"`
 
@@ -233,3 +236,12 @@ func decodeCustomer(raw json.RawMessage) (*Customer, error) {
 	err := json.Unmarshal(raw, &c)
 	return &c, err
 }
+
+// BuyerNatureWarning is advisory: customer/decision creation still succeeds.
+type BuyerNatureWarning struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+	Param   string `json:"param"`
+}
+
+const BuyerNatureSuspect = "buyer_nature_suspect"

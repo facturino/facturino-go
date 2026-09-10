@@ -444,8 +444,8 @@ func TestTaxDecisionRetryCarriesLineage(t *testing.T) {
 	if body["retryOfTaxDecisionId"] != "taxdec_previous" {
 		t.Errorf("retryOfTaxDecisionId = %v", body["retryOfTaxDecisionId"])
 	}
-	if d.RetryOfTaxDecisionID != "taxdec_previous" {
-		t.Errorf("RetryOfTaxDecisionID = %q", d.RetryOfTaxDecisionID)
+	if d.RetryOfTaxDecisionID == nil || *d.RetryOfTaxDecisionID != "taxdec_previous" {
+		t.Errorf("RetryOfTaxDecisionID = %v", d.RetryOfTaxDecisionID)
 	}
 }
 

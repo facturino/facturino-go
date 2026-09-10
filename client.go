@@ -3,6 +3,8 @@ package facturino
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -20,17 +22,19 @@ const (
 	defaultTimeout    = 30 * time.Second
 	apiVersion        = "v1"
 	apiDateVersion    = "2026-09-01"
-	sdkVersion        = "2.6.0"
+	sdkVersion        = "2.7.0"
 	defaultMaxRetries = 3
 )
 
 // httpClient wraps net/http for authenticated requests to the Facturino API.
 type httpClient struct {
-	apiKey      string
-	baseURL     string
-	httpClient  *http.Client
-	maxRetries  int
-	baseContext context.Context
+	apiKey          string
+	baseURL         string
+	httpClient      *http.Client
+	maxRetries      int
+	baseContext     context.Context
+	autoIdempotency bool
+	retryBudget     time.Duration
 }
 
 // withContext returns a shallow copy bound to ctx, used as the default context
@@ -54,10 +58,12 @@ func newHTTPClient(apiKey, baseURL string, httpCl *http.Client, maxRetries int) 
 		maxRetries = defaultMaxRetries
 	}
 	return &httpClient{
-		apiKey:     apiKey,
-		baseURL:    baseURL,
-		httpClient: httpCl,
-		maxRetries: maxRetries,
+		apiKey:          apiKey,
+		baseURL:         baseURL,
+		httpClient:      httpCl,
+		maxRetries:      maxRetries,
+		autoIdempotency: true,
+		retryBudget:     60 * time.Second,
 	}
 }
 
@@ -68,6 +74,20 @@ type requestOption struct {
 
 // do executes an HTTP request, retrying on 429/5xx, and decodes JSON into dest.
 func (c *httpClient) do(method, path string, body interface{}, dest interface{}, opts *requestOption) error {
+	data, _, err := c.doRaw(method, path, body, opts)
+	if err != nil {
+		return err
+	}
+	if len(data) == 0 || dest == nil {
+		return nil
+	}
+	if err := json.Unmarshal(data, dest); err != nil {
+		return fmt.Errorf("facturino: failed to decode response: %w", err)
+	}
+	return nil
+}
+
+func (c *httpClient) doRaw(method, path string, body interface{}, opts *requestOption) ([]byte, string, error) {
 	fullURL := c.baseURL + "/" + apiVersion + path
 
 	// Marshal the body ONCE (reused on each retry). A typed nil pointer (the
@@ -82,7 +102,7 @@ func (c *httpClient) do(method, path string, body interface{}, dest interface{},
 			var err error
 			data, err = json.Marshal(body)
 			if err != nil {
-				return fmt.Errorf("facturino: failed to marshal request body: %w", err)
+				return nil, "", fmt.Errorf("facturino: failed to marshal request body: %w", err)
 			}
 		}
 	}
@@ -95,6 +115,19 @@ func (c *httpClient) do(method, path string, body interface{}, dest interface{},
 		ctx = opts.context
 	}
 
+	key := ""
+	if opts != nil {
+		key = opts.idempotencyKey
+	}
+	if method == http.MethodPost && key == "" && c.autoIdempotency {
+		var token [16]byte
+		if _, err := rand.Read(token[:]); err != nil {
+			return nil, "", fmt.Errorf("facturino: idempotency key: %w", err)
+		}
+		key = hex.EncodeToString(token[:])
+	}
+	canRetry := method != http.MethodPost || key != ""
+	remainingBudget := c.retryBudget
 	var lastErr error
 	for attempt := 0; attempt <= c.maxRetries; attempt++ {
 		var bodyReader io.Reader
@@ -104,7 +137,7 @@ func (c *httpClient) do(method, path string, body interface{}, dest interface{},
 
 		req, err := http.NewRequestWithContext(ctx, method, fullURL, bodyReader)
 		if err != nil {
-			return fmt.Errorf("facturino: failed to create request: %w", err)
+			return nil, "", fmt.Errorf("facturino: failed to create request: %w", err)
 		}
 
 		req.Header.Set("Authorization", "Bearer "+c.apiKey)
@@ -113,97 +146,15 @@ func (c *httpClient) do(method, path string, body interface{}, dest interface{},
 		req.Header.Set("User-Agent", "facturino-go/"+sdkVersion)
 		req.Header.Set("Facturino-Version", apiDateVersion)
 
-		if opts != nil && opts.idempotencyKey != "" {
-			req.Header.Set("Idempotency-Key", opts.idempotencyKey)
+		if key != "" {
+			req.Header.Set("Idempotency-Key", key)
 		}
 
 		resp, err := c.httpClient.Do(req)
 		if err != nil {
 			lastErr = fmt.Errorf("facturino: request failed: %w", err)
 			// Network errors are retryable
-			if attempt < c.maxRetries {
-				c.backoff(ctx, attempt, nil)
-				continue
-			}
-			return lastErr
-		}
-
-		respBody, err := io.ReadAll(resp.Body)
-		resp.Body.Close()
-		if err != nil {
-			return fmt.Errorf("facturino: failed to read response body: %w", err)
-		}
-
-		// Retryable status codes
-		if c.isRetryable(resp.StatusCode) && attempt < c.maxRetries {
-			lastErr = c.parseError(resp.StatusCode, respBody)
-			c.backoff(ctx, attempt, resp)
-			continue
-		}
-
-		// Success
-		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-			if resp.StatusCode == 204 || dest == nil {
-				return nil
-			}
-			if err := json.Unmarshal(respBody, dest); err != nil {
-				return fmt.Errorf("facturino: failed to decode response: %w", err)
-			}
-			return nil
-		}
-
-		// Non-retryable error
-		return c.parseError(resp.StatusCode, respBody)
-	}
-
-	return lastErr
-}
-
-// doRaw is like do but returns raw bytes instead of decoding JSON.
-func (c *httpClient) doRaw(method, path string, body interface{}, opts *requestOption) ([]byte, string, error) {
-	fullURL := c.baseURL + "/" + apiVersion + path
-
-	var bodyReader io.Reader
-	if body != nil {
-		data, err := json.Marshal(body)
-		if err != nil {
-			return nil, "", fmt.Errorf("facturino: failed to marshal request body: %w", err)
-		}
-		bodyReader = bytes.NewReader(data)
-	}
-
-	ctx := c.baseContext
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	if opts != nil && opts.context != nil {
-		ctx = opts.context
-	}
-
-	var lastErr error
-	for attempt := 0; attempt <= c.maxRetries; attempt++ {
-		if body != nil {
-			data, _ := json.Marshal(body)
-			bodyReader = bytes.NewReader(data)
-		}
-
-		req, err := http.NewRequestWithContext(ctx, method, fullURL, bodyReader)
-		if err != nil {
-			return nil, "", fmt.Errorf("facturino: failed to create request: %w", err)
-		}
-
-		req.Header.Set("Authorization", "Bearer "+c.apiKey)
-		if body != nil {
-			req.Header.Set("Content-Type", "application/json")
-		}
-		req.Header.Set("User-Agent", "facturino-go/"+sdkVersion)
-		req.Header.Set("Facturino-Version", apiDateVersion)
-
-		resp, err := c.httpClient.Do(req)
-		if err != nil {
-			lastErr = fmt.Errorf("facturino: request failed: %w", err)
-			if attempt < c.maxRetries {
-				c.backoff(ctx, attempt, nil)
+			if canRetry && attempt < c.maxRetries && c.backoff(ctx, attempt, nil, &remainingBudget) {
 				continue
 			}
 			return nil, "", lastErr
@@ -212,20 +163,27 @@ func (c *httpClient) doRaw(method, path string, body interface{}, opts *requestO
 		respBody, err := io.ReadAll(resp.Body)
 		resp.Body.Close()
 		if err != nil {
-			return nil, "", fmt.Errorf("facturino: failed to read response body: %w", err)
+			lastErr = fmt.Errorf("facturino: failed to read response body: %w", err)
+			if canRetry && attempt < c.maxRetries && c.backoff(ctx, attempt, nil, &remainingBudget) {
+				continue
+			}
+			return nil, "", lastErr
 		}
 
-		if c.isRetryable(resp.StatusCode) && attempt < c.maxRetries {
+		// Retryable status codes
+		if canRetry && c.isRetryable(resp.StatusCode) && attempt < c.maxRetries {
 			lastErr = c.parseError(resp.StatusCode, respBody)
-			c.backoff(ctx, attempt, resp)
-			continue
+			if c.backoff(ctx, attempt, resp, &remainingBudget) {
+				continue
+			}
+			return nil, "", lastErr
 		}
 
 		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-			contentType := resp.Header.Get("Content-Type")
-			return respBody, contentType, nil
+			return respBody, resp.Header.Get("Content-Type"), nil
 		}
 
+		// Non-retryable error
 		return nil, "", c.parseError(resp.StatusCode, respBody)
 	}
 
@@ -260,34 +218,41 @@ func (c *httpClient) isRetryable(statusCode int) bool {
 	}
 }
 
-// backoff waits with exponential delay, respecting context cancellation and Retry-After.
-func (c *httpClient) backoff(ctx context.Context, attempt int, resp *http.Response) {
-	var delay time.Duration
-
-	// Check for Retry-After header
+// retryDelay never caps a server Retry-After. The call's cumulative waiting
+// budget determines whether to wait or return the original HTTP error.
+func retryDelay(attempt int, resp *http.Response) time.Duration {
 	if resp != nil {
-		if retryAfter := resp.Header.Get("Retry-After"); retryAfter != "" {
-			if seconds, err := strconv.Atoi(retryAfter); err == nil && seconds > 0 {
-				if seconds > 60 {
-					seconds = 60
-				}
-				delay = time.Duration(seconds) * time.Second
+		value := resp.Header.Get("Retry-After")
+		if seconds, err := strconv.ParseFloat(value, 64); err == nil && seconds >= 0 && !math.IsInf(seconds, 0) && !math.IsNaN(seconds) {
+			if seconds >= float64(math.MaxInt64)/float64(time.Second) {
+				return time.Duration(math.MaxInt64)
 			}
+			return time.Duration(seconds * float64(time.Second))
+		}
+		if date, err := http.ParseTime(value); err == nil {
+			delay := time.Until(date)
+			if delay < 0 {
+				return 0
+			}
+			return delay
 		}
 	}
+	return time.Duration(math.Min(math.Pow(2, float64(attempt))*500, 8000)) * time.Millisecond
+}
 
-	if delay == 0 {
-		// Exponential backoff: 500ms, 1s, 2s
-		delay = time.Duration(math.Pow(2, float64(attempt))) * 500 * time.Millisecond
-		if delay > 8*time.Second {
-			delay = 8 * time.Second
-		}
+func (c *httpClient) backoff(ctx context.Context, attempt int, resp *http.Response, budget *time.Duration) bool {
+	delay := retryDelay(attempt, resp)
+	if delay > *budget || ctx.Err() != nil {
+		return false
 	}
-
+	*budget -= delay
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
 	select {
-	case <-time.After(delay):
+	case <-timer.C:
+		return ctx.Err() == nil
 	case <-ctx.Done():
-		return
+		return false
 	}
 }
 

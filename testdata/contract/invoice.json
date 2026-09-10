@@ -1,0 +1,199 @@
+{
+  "id": "inv_c6_fixture",
+  "object": "invoice",
+  "type": "standard",
+  "status": "draft",
+  "documentStatus": "draft",
+  "transmissionStatus": "not_applicable",
+  "paymentStatus": "unpaid",
+  "transmissionDetail": null,
+  "taxSource": "facturino",
+  "taxDecisionId": "taxdec_e2e",
+  "taxSnapshot": {
+    "taxDecisionId": "taxdec_e2e",
+    "taxSource": "facturino",
+    "decidedAt": "2026-05-01T10:00:00.000Z",
+    "effectiveAt": "2026-05-01",
+    "expiresAt": "2099-01-01T00:00:00.000Z",
+    "rulesVersion": "fr-vat-2021-07-01",
+    "reportingCalendar": null,
+    "roundingPolicy": "fr-line-half-up-v1",
+    "operationFingerprint": "sha256:b",
+    "currency": "eur",
+    "priceMode": "tax_exclusive",
+    "seller": {
+      "sellerProfileId": "stp_1",
+      "sellerProfileRevision": 1,
+      "establishmentTerritoryId": "FR-MET",
+      "vatRegime": "normal_monthly",
+      "franchiseEnBase": false,
+      "vatOnDebits": false,
+      "sizeCategory": "large",
+      "voluntaryEarlyAdoption": false
+    },
+    "buyer": {
+      "customerId": "cus_abc",
+      "name": "Acme Buyer",
+      "nature": "business",
+      "natureBasis": "x",
+      "territoryId": "FR-MET",
+      "territoryKind": "fr_mainland",
+      "declaredCountry": "FR",
+      "declaredPostalCode": "75002",
+      "legalRegistrationId": "44306184100047",
+      "vatNumber": "FR12443061841",
+      "crossBorderTaxableStatus": "evidenced",
+      "businessStatusBasis": "french_legal_registration",
+      "viesStatus": null,
+      "viesCheckedAt": null
+    },
+    "lines": [
+      {
+        "lineRef": "l1",
+        "documentLineId": "li_c6_fixture",
+        "description": "Consulting",
+        "category": "services",
+        "effectiveCategory": "services",
+        "quantity": "5",
+        "unitAmountCents": 15000,
+        "discount": null,
+        "rateCategory": "standard",
+        "treatment": "domestic_taxable",
+        "vatCategoryCode": "S",
+        "vatexCode": null,
+        "legalMention": "",
+        "rateCentipercent": 2000,
+        "rateBasis": "territory_band",
+        "placeOfSupply": "FR-MET",
+        "amountHTCents": 75000,
+        "amountVATCents": 15000,
+        "amountTTCCents": 90000,
+        "invoiceChannel": "none",
+        "transactionReporting": "none",
+        "paymentReporting": "none"
+      }
+    ],
+    "totals": {
+      "totalHTCents": 75000,
+      "totalVATCents": 15000,
+      "totalTTCCents": 90000
+    },
+    "vatBreakdown": [
+      {
+        "rateCentipercent": 2000,
+        "categoryCode": "S",
+        "vatexCode": null,
+        "baseCents": 75000,
+        "amountCents": 15000
+      }
+    ],
+    "amountToChargeCents": 90000,
+    "invoiceChannel": "none",
+    "transactionReporting": "none",
+    "paymentReporting": "none",
+    "foreignTaxReviewRequired": false,
+    "euB2cDestination": null,
+    "legalMentions": []
+  },
+  "number": null,
+  "currency": "eur",
+  "customer": {
+    "ref": "cus_abc",
+    "snapshot": {
+      "name": "Acme Buyer",
+      "address": {
+        "line1": "10 rue Buyer",
+        "postalCode": "75002",
+        "city": "Paris",
+        "country": "FR"
+      },
+      "siret": "44306184100047",
+      "vatNumber": "FR12443061841",
+      "email": "client@example.com"
+    }
+  },
+  "items": [
+    {
+      "id": "li_c6_fixture",
+      "description": "Consulting",
+      "quantity": "5",
+      "unit": "hour",
+      "unitPrice": 15000,
+      "priceMode": "tax_exclusive",
+      "discountPercent": 0,
+      "lineAmount": 75000,
+      "vatRate": 2000,
+      "vatCode": "S",
+      "vatAmount": 15000,
+      "lineTotal": 90000,
+      "product": null,
+      "kind": "service",
+      "taxLineRef": "l1"
+    }
+  ],
+  "totals": {
+    "totalHT": 75000,
+    "discountAmount": 0,
+    "vatBreakdown": [
+      {
+        "rate": 2000,
+        "code": "S",
+        "base": 75000,
+        "amount": 15000
+      }
+    ],
+    "totalVAT": 15000,
+    "totalTTC": 90000,
+    "amountDue": 90000,
+    "amountPaid": 0
+  },
+  "dates": {
+    "issued": "2026-05-01",
+    "due": "2026-05-31"
+  },
+  "paymentInfo": {
+    "terms": "À 30 jours",
+    "termsDays": 30,
+    "method": "transfer",
+    "iban": "FR7630001007941234567890185",
+    "bic": "BDFEFRPP",
+    "latePaymentRate": "3x taux BCE",
+    "collectionFee": "40 EUR"
+  },
+  "einvoicing": {
+    "paId": null,
+    "paStatus": null,
+    "paStatusCode": null,
+    "paTransactionId": null,
+    "paErrorCode": null,
+    "paIdempotencyKey": null,
+    "peppolDeliveryId": null,
+    "ereportingId": null,
+    "sentAt": null,
+    "trackingId": null
+  },
+  "archive": null,
+  "files": {},
+  "portal": null,
+  "notes": null,
+  "legalMentions": null,
+  "purchaseOrderNumber": null,
+  "lifecycle": [
+    {
+      "status": "draft",
+      "timestamp": "2026-09-09T12:00:00.000Z",
+      "source": "user",
+      "code": "statuses.draft.detail",
+      "params": {},
+      "details": "Brouillon"
+    }
+  ],
+  "reminderTaskIds": [],
+  "processed": false,
+  "anonymized": false,
+  "anonymizedAt": null,
+  "metadata": {},
+  "livemode": false,
+  "created": "2026-09-09T12:00:00.000Z",
+  "updated": "2026-09-09T12:00:00.000Z"
+}

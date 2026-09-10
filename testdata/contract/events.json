@@ -1,0 +1,315 @@
+[
+  {
+    "id": "evt_invoice_rejected",
+    "object": "event",
+    "type": "invoice.rejected",
+    "apiVersion": "2026-09-01",
+    "created": "2026-09-07T12:36:00.000Z",
+    "livemode": true,
+    "data": {
+      "id": "inv_00090",
+      "object": "invoice",
+      "number": "FAC2026-00090",
+      "status": "rejected",
+      "previous_status": "deposited",
+      "livemode": true,
+      "documentStatus": "finalized",
+      "transmissionStatus": "rejected",
+      "transmissionDetail": null,
+      "paymentStatus": "unpaid",
+      "paErrorCode": null,
+      "rejectionReason": "REJ_ADR — Directory line matricule_plateforme (0037) does not match expected matricule (0022)",
+      "rejectionCategory": "addressing_error",
+      "rejectionCode": "REJ_ADR",
+      "rejectionSource": "platform",
+      "metadata": {}
+    },
+    "request": null
+  },
+  {
+    "id": "evt_invoice_refused",
+    "object": "event",
+    "type": "invoice.refused",
+    "apiVersion": "2026-09-01",
+    "created": "2026-09-07T12:36:00.000Z",
+    "livemode": true,
+    "data": {
+      "id": "inv_00090",
+      "object": "invoice",
+      "number": "FAC2026-00090",
+      "status": "refused",
+      "previous_status": "deposited",
+      "livemode": true,
+      "documentStatus": "finalized",
+      "transmissionStatus": "rejected",
+      "transmissionDetail": "refused",
+      "paymentStatus": "unpaid",
+      "paErrorCode": null,
+      "rejectionReason": "Montant contesté.",
+      "rejectionCategory": "refused_by_buyer",
+      "rejectionCode": null,
+      "rejectionSource": "buyer",
+      "metadata": {}
+    },
+    "request": null
+  },
+  {
+    "id": "evt_credit_note_credit_refused",
+    "object": "event",
+    "type": "credit_note.credit_refused",
+    "apiVersion": "2026-09-01",
+    "created": "2026-09-07T12:36:00.000Z",
+    "livemode": true,
+    "data": {
+      "id": "cn_example",
+      "object": "credit_note",
+      "number": "AV2026-00001",
+      "status": "credit_refused",
+      "previous_status": "deposited",
+      "livemode": true,
+      "documentStatus": "finalized",
+      "transmissionStatus": "rejected",
+      "transmissionDetail": "refused",
+      "paymentStatus": "unpaid",
+      "paErrorCode": null,
+      "rejectionReason": "Montant contesté.",
+      "rejectionCategory": "refused_by_buyer",
+      "rejectionCode": null,
+      "rejectionSource": "buyer",
+      "metadata": {},
+      "relatedInvoiceId": "inv_00090",
+      "relatedInvoiceNumber": "FAC2026-00090"
+    },
+    "request": null
+  },
+  {
+    "id": "evt_payment_received",
+    "object": "event",
+    "type": "payment.received",
+    "apiVersion": "2026-09-01",
+    "created": "2026-09-07T12:36:00.000Z",
+    "livemode": true,
+    "data": {
+      "id": "inv_00090",
+      "object": "invoice",
+      "number": "FAC2026-00090",
+      "status": "paid",
+      "previous_status": "rejected",
+      "livemode": true,
+      "documentStatus": "finalized",
+      "transmissionStatus": "rejected",
+      "transmissionDetail": null,
+      "paymentStatus": "paid",
+      "paErrorCode": null,
+      "rejectionReason": "REJ_ADR — Directory line matricule_plateforme (0037) does not match expected matricule (0022)",
+      "rejectionCategory": "addressing_error",
+      "rejectionCode": "REJ_ADR",
+      "rejectionSource": "platform",
+      "metadata": {},
+      "amount": "11.88",
+      "total_paid": "11.88",
+      "total_due": "11.88",
+      "total": "11.88",
+      "amountDue": "0.00"
+    },
+    "request": null
+  },
+  {
+    "object": "event",
+    "apiVersion": "2026-09-01",
+    "created": "2026-09-07T12:36:00.000Z",
+    "livemode": true,
+    "request": null,
+    "id": "evt_invoice_created",
+    "type": "invoice.created",
+    "data": {
+      "id": "inv_x",
+      "object": "invoice",
+      "status": "draft"
+    }
+  },
+  {
+    "object": "event",
+    "apiVersion": "2026-09-01",
+    "created": "2026-09-07T12:36:00.000Z",
+    "livemode": true,
+    "request": null,
+    "id": "evt_credit_note_created",
+    "type": "credit_note.created",
+    "data": {
+      "id": "cn_x",
+      "object": "credit_note",
+      "status": "draft"
+    }
+  },
+  {
+    "object": "event",
+    "apiVersion": "2026-09-01",
+    "created": "2026-09-07T12:36:00.000Z",
+    "livemode": true,
+    "request": null,
+    "id": "evt_quote_created",
+    "type": "quote.created",
+    "data": {
+      "id": "qt_x",
+      "object": "quote",
+      "status": "draft",
+      "number": null,
+      "metadata": {}
+    }
+  },
+  {
+    "object": "event",
+    "apiVersion": "2026-09-01",
+    "created": "2026-09-07T12:36:00.000Z",
+    "livemode": true,
+    "request": null,
+    "id": "evt_customer_created",
+    "type": "customer.created",
+    "data": {
+      "id": "cus_x",
+      "object": "customer",
+      "livemode": false
+    }
+  },
+  {
+    "object": "event",
+    "apiVersion": "2026-09-01",
+    "created": "2026-09-07T12:36:00.000Z",
+    "livemode": true,
+    "request": null,
+    "id": "evt_payment_created",
+    "type": "payment.created",
+    "data": {
+      "invoiceId": "inv_00090",
+      "paymentId": "pay_fixture",
+      "amount": "11.88",
+      "method": "card"
+    }
+  },
+  {
+    "object": "event",
+    "apiVersion": "2026-09-01",
+    "created": "2026-09-07T12:36:00.000Z",
+    "livemode": true,
+    "request": null,
+    "id": "evt_invoice_incoming_received",
+    "type": "invoice.incoming.received",
+    "data": {
+      "id": "rec_fixture",
+      "object": "received_invoice",
+      "pa_invoice_id": "pa_fixture",
+      "sender_siret": "73282932000074",
+      "sender_name": "INTEK CENTER",
+      "number": "FAC2026-00112",
+      "total_ht": "9.90",
+      "total_tva": "1.98",
+      "total_ttc": "11.88"
+    }
+  },
+  {
+    "object": "event",
+    "apiVersion": "2026-09-01",
+    "created": "2026-09-07T12:36:00.000Z",
+    "livemode": true,
+    "request": null,
+    "id": "evt_recurring_invoice_generated",
+    "type": "recurring_invoice.generated",
+    "data": {
+      "id": "inv_x",
+      "object": "invoice",
+      "recurringInvoiceId": "recurring_fixture",
+      "livemode": false
+    }
+  },
+  {
+    "object": "event",
+    "apiVersion": "2026-09-01",
+    "created": "2026-09-07T12:36:00.000Z",
+    "livemode": true,
+    "request": null,
+    "id": "evt_recurring_invoice_failed",
+    "type": "recurring_invoice.failed",
+    "data": {
+      "id": "recurring_fixture",
+      "object": "recurring_invoice",
+      "error": "Operation unavailable"
+    }
+  },
+  {
+    "object": "event",
+    "apiVersion": "2026-09-01",
+    "created": "2026-09-07T12:36:00.000Z",
+    "livemode": true,
+    "request": null,
+    "id": "evt_ereporting_submitted",
+    "type": "ereporting.submitted",
+    "data": {
+      "id": "rep_fixture",
+      "object": "ereporting",
+      "status": "submitted",
+      "type": "b2c",
+      "period": "2026-09",
+      "attempt": 2
+    }
+  },
+  {
+    "object": "event",
+    "apiVersion": "2026-09-01",
+    "created": "2026-09-07T12:36:00.000Z",
+    "livemode": true,
+    "request": null,
+    "id": "evt_export_ready",
+    "type": "export.ready",
+    "data": {
+      "id": "job_fixture",
+      "object": "export",
+      "count": 10
+    }
+  },
+  {
+    "object": "event",
+    "apiVersion": "2026-09-01",
+    "created": "2026-09-07T12:36:00.000Z",
+    "livemode": true,
+    "request": null,
+    "id": "evt_subscription_paused",
+    "type": "subscription.paused",
+    "data": {
+      "status": "paused",
+      "pausedUntil": null,
+      "stripeSubscriptionId": "sub_fixture"
+    }
+  },
+  {
+    "id": "evt_credit_note_sent",
+    "object": "event",
+    "type": "credit_note.sent",
+    "apiVersion": "2026-09-01",
+    "created": "2026-09-07T12:36:00.000Z",
+    "livemode": true,
+    "data": {
+      "id": "cn_example",
+      "object": "credit_note",
+      "number": "AV2026-00001",
+      "status": "credit_deposited",
+      "previous_status": "credit_finalized",
+      "livemode": true,
+      "documentStatus": "finalized",
+      "transmissionStatus": "deposited",
+      "transmissionDetail": null,
+      "paymentStatus": "unpaid",
+      "paErrorCode": null,
+      "rejectionReason": null,
+      "rejectionCategory": null,
+      "rejectionCode": null,
+      "rejectionSource": null,
+      "metadata": {},
+      "relatedInvoiceId": "inv_00090",
+      "relatedInvoiceNumber": "FAC2026-00090",
+      "paStatus": "deposited",
+      "paInvoiceId": "pa_fixture"
+    },
+    "request": null
+  }
+]
