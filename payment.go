@@ -7,22 +7,23 @@ import (
 
 // Payment is a payment recorded against an invoice.
 type Payment struct {
-	RawResponse  `json:"-"`
-	CompanyID    string  `json:"companyId,omitempty"`
-	InvoiceID    string  `json:"invoiceId,omitempty"`
-	Livemode     bool    `json:"livemode,omitempty"`
-	CreditNoteID string  `json:"creditNoteId,omitempty"`
-	CancelledAt  string  `json:"cancelledAt,omitempty"`
-	Type         string  `json:"type,omitempty"`
-	Status       *string `json:"status,omitempty"`
-	ID           string  `json:"id"`
-	Object       string  `json:"object"`
-	Amount       int     `json:"amount"` // integer centimes
-	Method       string  `json:"method"`
-	Reference    *string `json:"reference"`
-	PaidAt       string  `json:"paidAt"`
-	RecordedBy   string  `json:"recorded_by"`
-	Created      string  `json:"created"`
+	ReportingFollowUp *ObligationFollowUp `json:"reportingFollowUp,omitempty"`
+	RawResponse       `json:"-"`
+	CompanyID         string  `json:"companyId,omitempty"`
+	InvoiceID         string  `json:"invoiceId,omitempty"`
+	Livemode          bool    `json:"livemode,omitempty"`
+	CreditNoteID      string  `json:"creditNoteId,omitempty"`
+	CancelledAt       string  `json:"cancelledAt,omitempty"`
+	Type              string  `json:"type,omitempty"`
+	Status            *string `json:"status,omitempty"`
+	ID                string  `json:"id"`
+	Object            string  `json:"object"`
+	Amount            int     `json:"amount"` // integer centimes
+	Method            string  `json:"method"`
+	Reference         *string `json:"reference"`
+	PaidAt            string  `json:"paidAt"`
+	RecordedBy        string  `json:"recorded_by"`
+	Created           string  `json:"created"`
 	// FR212 is where the collection status (fr:212 « Encaissée ») of this
 	// payment stands on the platform; nil when no such status is owed.
 	FR212 *PaymentCollectionStatus `json:"fr212,omitempty"`
@@ -30,6 +31,7 @@ type Payment struct {
 
 // PaymentCollectionStatus is the platform-side state of a payment's fr:212 status.
 type PaymentCollectionStatus struct {
+	Obligation *ObligationFollowUp `json:"obligation,omitempty"`
 	// State is pending, awaiting_deposit, sent, blocked, reconciliation_required or failed.
 	State         string  `json:"state"`
 	SentAt        *string `json:"sentAt"`

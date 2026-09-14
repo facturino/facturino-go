@@ -6,12 +6,17 @@ adheres to [Semantic Versioning](https://semver.org/) and
 
 ## [Unreleased]
 
-### Registry disclosure
-- Customer lookups expose `disclosure.status` and `disclosure.withheldFields`; protected names and addresses are empty, never invented. Older responses can omit disclosure.
+## [2.10.0] - 2026-09-14
 
 ### Added
+- Add read-only obligation follow-up and autonomous recovery events for invoices, credit notes, collections and e-reporting. Technical recovery is owned by Facturino; manual retry routes remain optional.
+- Preserve historical omissions, explicit null and original platform reasons. API date remains 2026-09-01.
+- Add the `connect_platform` obligation action: the customer must connect or reconfigure a platform before Facturino resumes; `investigate` is a technical incident handled by Facturino.
 - Read-only seller routing: `einvoicing.senderRoutingIdentifier` and `submissionArtefact.sellerRoutingIdentifier`.
 - `payment.received` exposes nullable `paymentId` and `fr212`; historical events may omit them. Event amounts remain decimal euro strings, and `total_due` remains the invoice total. API date unchanged.
+
+### Registry disclosure
+- Customer lookups expose `disclosure.status` and `disclosure.withheldFields`; protected names and addresses are empty, never invented. Older responses can omit disclosure.
 
 ## [2.9.0] - 2026-09-11
 

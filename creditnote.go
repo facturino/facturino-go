@@ -7,6 +7,7 @@ import (
 
 // CreditNote is a credit note (avoir).
 type CreditNote struct {
+	EReportingBlock      *EReportingBlock `json:"ereportingBlock,omitempty"`
 	RawResponse          `json:"-"`
 	CompanyId            string            `json:"companyId,omitempty"`
 	Lifecycle            []json.RawMessage `json:"lifecycle,omitempty"`
@@ -70,19 +71,24 @@ type CreditNoteDates struct {
 
 // CreditNoteEinvoicing holds e-invoicing status.
 type CreditNoteEinvoicing struct {
-	PAID                *string                      `json:"paId,omitempty"`
-	PAStatus            *string                      `json:"paStatus,omitempty"`
-	DepositedAt         *string                      `json:"depositedAt,omitempty"`
-	PAIdempotencyKey    string                       `json:"paIdempotencyKey,omitempty"`
-	PAErrorCode         *string                      `json:"paErrorCode,omitempty"`
-	PAStatusCode        *string                      `json:"paStatusCode,omitempty"`
-	RejectionReason     *string                      `json:"rejectionReason,omitempty"`
-	RejectionCategory   *PaRejectionCategory         `json:"rejectionCategory,omitempty"`
-	RejectionCode       *string                      `json:"rejectionCode,omitempty"`
-	RejectionSource     *PaRejectionSource           `json:"rejectionSource,omitempty"`
-	RejectionNote       *string                      `json:"rejectionNote,omitempty"`
-	PreviousSubmissions []*InvoicePreviousSubmission `json:"previousSubmissions,omitempty"`
-	EreportingID        *string                      `json:"ereportingId,omitempty"`
+	RoutingIdentifier       *string                      `json:"routingIdentifier,omitempty"`
+	SenderRoutingIdentifier *string                      `json:"senderRoutingIdentifier,omitempty"`
+	BuyerReachableAt        *string                      `json:"buyerReachableAt,omitempty"`
+	DirectoryCheckedAt      *string                      `json:"directoryCheckedAt,omitempty"`
+	Obligation              *ObligationFollowUp          `json:"obligation,omitempty"`
+	PAID                    *string                      `json:"paId,omitempty"`
+	PAStatus                *string                      `json:"paStatus,omitempty"`
+	DepositedAt             *string                      `json:"depositedAt,omitempty"`
+	PAIdempotencyKey        string                       `json:"paIdempotencyKey,omitempty"`
+	PAErrorCode             *string                      `json:"paErrorCode,omitempty"`
+	PAStatusCode            *string                      `json:"paStatusCode,omitempty"`
+	RejectionReason         *string                      `json:"rejectionReason,omitempty"`
+	RejectionCategory       *PaRejectionCategory         `json:"rejectionCategory,omitempty"`
+	RejectionCode           *string                      `json:"rejectionCode,omitempty"`
+	RejectionSource         *PaRejectionSource           `json:"rejectionSource,omitempty"`
+	RejectionNote           *string                      `json:"rejectionNote,omitempty"`
+	PreviousSubmissions     []*InvoicePreviousSubmission `json:"previousSubmissions,omitempty"`
+	EreportingID            *string                      `json:"ereportingId,omitempty"`
 }
 
 // CreditNoteFiles holds generated document paths.

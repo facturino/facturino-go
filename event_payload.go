@@ -3,6 +3,7 @@ package facturino
 import "encoding/json"
 
 type InvoiceWebhookData struct {
+	Obligation         *ObligationFollowUp    `json:"obligation,omitempty"`
 	ID                 *string                `json:"id,omitempty"`
 	Object             *string                `json:"object,omitempty"`
 	Status             *string                `json:"status,omitempty"`
@@ -44,6 +45,7 @@ type QuoteWebhookData struct {
 }
 
 type CreditNoteWebhookData struct {
+	Obligation           *ObligationFollowUp    `json:"obligation,omitempty"`
 	PAStatus             *string                `json:"paStatus,omitempty"`
 	PAInvoiceID          *string                `json:"paInvoiceId,omitempty"`
 	ID                   *string                `json:"id,omitempty"`
@@ -80,6 +82,7 @@ type PaymentCreatedWebhookData struct {
 }
 
 type PaymentReceivedWebhookData struct {
+	Obligation *ObligationFollowUp `json:"obligation,omitempty"`
 	// Optional for historical events; nil also represents unattributed changes.
 	PaymentID          *string                  `json:"paymentId,omitempty"`
 	FR212              *PaymentCollectionStatus `json:"fr212,omitempty"`
@@ -107,12 +110,15 @@ type PaymentReceivedWebhookData struct {
 }
 
 type EreportingWebhookData struct {
-	ID      *string `json:"id,omitempty"`
-	Object  *string `json:"object,omitempty"`
-	Status  *string `json:"status,omitempty"`
-	Type    *string `json:"type,omitempty"`
-	Period  *string `json:"period,omitempty"`
-	Attempt *int    `json:"attempt,omitempty"`
+	PARejectionCode   *string             `json:"paRejectionCode,omitempty"`
+	PARejectionReason *string             `json:"paRejectionReason,omitempty"`
+	Obligation        *ObligationFollowUp `json:"obligation,omitempty"`
+	ID                *string             `json:"id,omitempty"`
+	Object            *string             `json:"object,omitempty"`
+	Status            *string             `json:"status,omitempty"`
+	Type              *string             `json:"type,omitempty"`
+	Period            *string             `json:"period,omitempty"`
+	Attempt           *int                `json:"attempt,omitempty"`
 }
 
 type RecurringGeneratedWebhookData struct {
@@ -145,6 +151,8 @@ type SubscriptionWebhookData struct {
 func decodeEventPayload(eventType string, data map[string]interface{}) (interface{}, error) {
 	var target interface{}
 	switch eventType {
+	case "invoice.obligation_updated", "credit_note.obligation_updated", "payment.obligation_updated", "ereporting.obligation_updated":
+		target = &ObligationWebhookData{}
 	case "invoice.created", "invoice.finalized", "invoice.sending", "invoice.sent", "invoice.deposited", "invoice.transmitted", "invoice.available", "invoice.received", "invoice.approved", "invoice.refused", "invoice.rejected", "invoice.suspended", "invoice.paid", "invoice.partially_paid", "invoice.overdue":
 		target = &InvoiceWebhookData{}
 	case "invoice.incoming.received":
@@ -159,7 +167,7 @@ func decodeEventPayload(eventType string, data map[string]interface{}) (interfac
 		target = &PaymentCreatedWebhookData{}
 	case "payment.received":
 		target = &PaymentReceivedWebhookData{}
-	case "ereporting.submitted":
+	case "ereporting.submitted", "ereporting.accepted", "ereporting.rejected":
 		target = &EreportingWebhookData{}
 	case "recurring_invoice.generated":
 		target = &RecurringGeneratedWebhookData{}

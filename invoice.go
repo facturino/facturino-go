@@ -10,6 +10,7 @@ import (
 
 // Invoice is a Facturino invoice.
 type Invoice struct {
+	EReportingBlock     *EReportingBlock `json:"ereportingBlock,omitempty"`
 	RawResponse         `json:"-"`
 	Deposits            []json.RawMessage `json:"deposits,omitempty"`
 	PaymentSchedule     []json.RawMessage `json:"paymentSchedule,omitempty"`
@@ -165,16 +166,17 @@ type InvoicePreviousSubmission struct {
 
 // InvoiceEinvoicing holds e-invoicing (PA) status.
 type InvoiceEinvoicing struct {
-	SenderRoutingIdentifier *string            `json:"senderRoutingIdentifier,omitempty"`
-	RoutingIdentifier       *string            `json:"routingIdentifier,omitempty"`
-	BuyerReachableAt        *string            `json:"buyerReachableAt,omitempty"`
-	DirectoryCheckedAt      *string            `json:"directoryCheckedAt,omitempty"`
-	EreportingPaymentID     *string            `json:"ereportingPaymentId,omitempty"`
-	RejectionCode           *string            `json:"rejectionCode,omitempty"`
-	RejectionSource         *PaRejectionSource `json:"rejectionSource,omitempty"`
-	RejectionNote           *string            `json:"rejectionNote,omitempty"`
-	PAID                    *string            `json:"paId"`
-	PAStatus                *string            `json:"paStatus"`
+	Obligation              *ObligationFollowUp `json:"obligation,omitempty"`
+	SenderRoutingIdentifier *string             `json:"senderRoutingIdentifier,omitempty"`
+	RoutingIdentifier       *string             `json:"routingIdentifier,omitempty"`
+	BuyerReachableAt        *string             `json:"buyerReachableAt,omitempty"`
+	DirectoryCheckedAt      *string             `json:"directoryCheckedAt,omitempty"`
+	EreportingPaymentID     *string             `json:"ereportingPaymentId,omitempty"`
+	RejectionCode           *string             `json:"rejectionCode,omitempty"`
+	RejectionSource         *PaRejectionSource  `json:"rejectionSource,omitempty"`
+	RejectionNote           *string             `json:"rejectionNote,omitempty"`
+	PAID                    *string             `json:"paId"`
+	PAStatus                *string             `json:"paStatus"`
 	// PAStatusCode is the raw platform status code (e.g. "fr:200").
 	PAStatusCode    *string `json:"paStatusCode,omitempty"`
 	PATransactionID *string `json:"paTransactionId"`

@@ -1,0 +1,195 @@
+{
+  "obligation": {
+    "state": "waiting",
+    "reasonCode": "rate_limited",
+    "reasonSource": "platform",
+    "owner": "facturino",
+    "action": "retry",
+    "nextAttemptAt": "2026-09-15T10:00:00.000Z"
+  },
+  "completed": {
+    "state": "completed",
+    "reasonCode": null,
+    "reasonSource": null,
+    "owner": null,
+    "action": null,
+    "nextAttemptAt": null
+  },
+  "einvoicing": {
+    "paId": null,
+    "paStatus": null,
+    "paStatusCode": null,
+    "paTransactionId": null,
+    "paErrorCode": null,
+    "paIdempotencyKey": null,
+    "peppolDeliveryId": null,
+    "ereportingId": null,
+    "sentAt": null,
+    "trackingId": null,
+    "senderRoutingIdentifier": "0225:908456726_90845672600029",
+    "submissionArtefact": {
+      "kind": "cii",
+      "path": "users/example/companies/example/invoices/inv_example/submission.xml",
+      "generatedAt": "2026-09-10T07:51:00Z",
+      "correctedRules": [],
+      "sellerRoutingIdentifier": "0225:908456726_90845672600029"
+    },
+    "obligation": {
+      "state": "waiting",
+      "reasonCode": "rate_limited",
+      "reasonSource": "platform",
+      "owner": "facturino",
+      "action": "retry",
+      "nextAttemptAt": "2026-09-15T10:00:00.000Z"
+    }
+  },
+  "fr212": {
+    "state": "pending",
+    "sentAt": null,
+    "lastErrorCode": "pa_lifecycle_not_ready",
+    "lastErrorReason": "Réessayer plus tard",
+    "updatedAt": "2026-09-13T10:00:00.000Z",
+    "obligation": {
+      "state": "waiting",
+      "reasonCode": "rate_limited",
+      "reasonSource": "platform",
+      "owner": "facturino",
+      "action": "retry",
+      "nextAttemptAt": "2026-09-15T10:00:00.000Z"
+    }
+  },
+  "legacy": {},
+  "explicitNull": {
+    "obligation": null
+  },
+  "events": [
+    {
+      "id": "evt_invoice",
+      "object": "event",
+      "type": "invoice.obligation_updated",
+      "data": {
+        "id": "inv_test",
+        "object": "invoice",
+        "obligation": {
+          "state": "waiting",
+          "reasonCode": "rate_limited",
+          "reasonSource": "platform",
+          "owner": "facturino",
+          "action": "retry",
+          "nextAttemptAt": "2026-09-15T10:00:00.000Z"
+        },
+        "reason": "Réessayer plus tard"
+      },
+      "apiVersion": "2026-09-01",
+      "livemode": false,
+      "created": "2026-09-13T10:00:00.000Z",
+      "updated": "2026-09-13T10:00:00.000Z",
+      "delivered": false,
+      "attempts": [],
+      "nextRetry": "2026-09-13T10:00:00.000Z",
+      "companyId": "cmp_test"
+    },
+    {
+      "id": "evt_credit_note",
+      "object": "event",
+      "type": "credit_note.obligation_updated",
+      "data": {
+        "id": "crn_test",
+        "object": "credit_note",
+        "obligation": {
+          "state": "waiting",
+          "reasonCode": "rate_limited",
+          "reasonSource": "platform",
+          "owner": "facturino",
+          "action": "retry",
+          "nextAttemptAt": "2026-09-15T10:00:00.000Z"
+        },
+        "reason": "Réessayer plus tard"
+      },
+      "apiVersion": "2026-09-01",
+      "livemode": false,
+      "created": "2026-09-13T10:00:00.000Z",
+      "updated": "2026-09-13T10:00:00.000Z",
+      "delivered": false,
+      "attempts": [],
+      "nextRetry": "2026-09-13T10:00:00.000Z",
+      "companyId": "cmp_test"
+    },
+    {
+      "id": "evt_payment",
+      "object": "event",
+      "type": "payment.obligation_updated",
+      "data": {
+        "id": "pay_test",
+        "object": "payment",
+        "obligation": {
+          "state": "waiting",
+          "reasonCode": "rate_limited",
+          "reasonSource": "platform",
+          "owner": "facturino",
+          "action": "retry",
+          "nextAttemptAt": "2026-09-15T10:00:00.000Z"
+        },
+        "reason": "Réessayer plus tard",
+        "invoiceId": "inv_test",
+        "fr212": {
+          "state": "pending",
+          "sentAt": null,
+          "lastErrorCode": "pa_lifecycle_not_ready",
+          "lastErrorReason": "Réessayer plus tard",
+          "updatedAt": "2026-09-13T10:00:00.000Z",
+          "obligation": {
+            "state": "waiting",
+            "reasonCode": "rate_limited",
+            "reasonSource": "platform",
+            "owner": "facturino",
+            "action": "retry",
+            "nextAttemptAt": "2026-09-15T10:00:00.000Z"
+          }
+        }
+      },
+      "apiVersion": "2026-09-01",
+      "livemode": false,
+      "created": "2026-09-13T10:00:00.000Z",
+      "updated": "2026-09-13T10:00:00.000Z",
+      "delivered": false,
+      "attempts": [],
+      "nextRetry": "2026-09-13T10:00:00.000Z",
+      "companyId": "cmp_test"
+    },
+    {
+      "id": "evt_ereporting",
+      "object": "event",
+      "type": "ereporting.obligation_updated",
+      "data": {
+        "id": "rep_test",
+        "object": "ereporting",
+        "obligation": {
+          "state": "waiting",
+          "reasonCode": "rate_limited",
+          "reasonSource": "platform",
+          "owner": "facturino",
+          "action": "retry",
+          "nextAttemptAt": "2026-09-15T10:00:00.000Z"
+        },
+        "reason": "Réessayer plus tard"
+      },
+      "apiVersion": "2026-09-01",
+      "livemode": false,
+      "created": "2026-09-13T10:00:00.000Z",
+      "updated": "2026-09-13T10:00:00.000Z",
+      "delivered": false,
+      "attempts": [],
+      "nextRetry": "2026-09-13T10:00:00.000Z",
+      "companyId": "cmp_test"
+    }
+  ],
+  "customerAction": {
+    "state": "attention_required",
+    "reasonCode": "pa_not_configured",
+    "reasonSource": "facturino",
+    "owner": "customer",
+    "action": "connect_platform",
+    "nextAttemptAt": "2026-09-15T04:00:00.000Z"
+  }
+}

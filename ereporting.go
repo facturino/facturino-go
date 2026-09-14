@@ -7,10 +7,12 @@ import (
 
 // EReporting is an e-reporting declaration.
 type EReporting struct {
-	ID        string `json:"id"`
-	Object    string `json:"object"`
-	Livemode  bool   `json:"livemode"`
-	CompanyID string `json:"companyId"`
+	PARejectionCode *string             `json:"paRejectionCode,omitempty"`
+	Obligation      *ObligationFollowUp `json:"obligation,omitempty"`
+	ID              string              `json:"id"`
+	Object          string              `json:"object"`
+	Livemode        bool                `json:"livemode"`
+	CompanyID       string              `json:"companyId"`
 	// Status is the SUMMARY derived from State (draft, submitted, accepted,
 	// rejected, skipped) — never an authority of its own.
 	Status string `json:"status"`
