@@ -26,6 +26,11 @@ type Customer struct {
 
 	Type     string     `json:"type"`
 	Contacts []*Contact `json:"contacts,omitempty"`
+	// TaxStatus is "taxable" or "non_taxable"; empty when not supplied.
+	// A declared non-taxable legal person carrying a VAT number is checked
+	// through VIES: a valid number makes its services follow taxable-person
+	// rules (CGI art. 259-0); an unreachable VIES leaves vies_unavailable pending.
+	TaxStatus string `json:"taxStatus,omitempty"`
 
 	PaymentTerms int      `json:"paymentTerms,omitempty"`
 	Tags         []string `json:"tags,omitempty"`
@@ -56,6 +61,8 @@ type CustomerParams struct {
 	VATNumber string          `json:"vatNumber,omitempty"`
 	LegalForm *LegalFormInput `json:"legalForm,omitempty"`
 	NAF       *NafInput       `json:"naf,omitempty"`
+	// TaxStatus is "taxable" or "non_taxable"; omitted when empty.
+	TaxStatus string `json:"taxStatus,omitempty"`
 
 	Address         *Address `json:"address,omitempty"`
 	DeliveryAddress *Address `json:"deliveryAddress,omitempty"`
@@ -80,6 +87,8 @@ type CustomerUpdateParams struct {
 	VATNumber string          `json:"vatNumber,omitempty"`
 	LegalForm *LegalFormInput `json:"legalForm,omitempty"`
 	NAF       *NafInput       `json:"naf,omitempty"`
+	// TaxStatus is "taxable" or "non_taxable"; omitted when empty.
+	TaxStatus string `json:"taxStatus,omitempty"`
 
 	Address         *Address `json:"address,omitempty"`
 	DeliveryAddress *Address `json:"deliveryAddress,omitempty"`

@@ -45,7 +45,11 @@ type Invoice struct {
 	TaxSource string `json:"taxSource,omitempty"`
 	// TaxDecisionID names the decision backing this invoice, when it has one.
 	TaxDecisionID string `json:"taxDecisionId,omitempty"`
-	// TaxSnapshot is the frozen fiscal position copied from the decision.
+	// TaxSnapshot is the frozen fiscal position copied from the decision. Its
+	// "notices" key holds the decision's notices frozen with it, in the shape of
+	// TaxDecisionNotice: what the decision retained and what the seller can do
+	// next. It is empty when there is nothing to report; historical snapshots
+	// may omit the key. Notices never stand for a missing fact.
 	TaxSnapshot map[string]interface{} `json:"taxSnapshot,omitempty"`
 	// CommercialDraft is the operation an UNDECIDED draft states — typically
 	// one produced by Quotes.Convert. Present only while TaxSource is empty; it
@@ -269,10 +273,36 @@ type LineItem struct {
 	LineAmount      int    `json:"lineAmount"`
 	VATRate         int    `json:"vatRate"` // centièmes de pourcent
 	VATCode         string `json:"vatCode"`
-	VATexCode       string `json:"vatexCode,omitempty"` // specific VATEX code (BT-121), when set
-	VATAmount       int    `json:"vatAmount"`
-	LineTotal       int    `json:"lineTotal"`
-	Product         string `json:"product"`
+	// VATexCode is an open string from the official CIUS-FR list (88 codes).
+	// A document issued earlier keeps the code it was issued with.
+	VATexCode string `json:"vatexCode,omitempty"`
+	VATAmount int    `json:"vatAmount"`
+	LineTotal int    `json:"lineTotal"`
+	Product   string `json:"product"`
+	// Kind is "goods" or "service"; on decided lines it follows the category.
+	Kind string `json:"kind,omitempty"`
+	// SupplyCategory is the quote author's declared fiscal nature, an open
+	// string. Empty means undeclared; conversion never invents a service nature.
+	SupplyCategory string `json:"supplyCategory,omitempty"`
+	// LocalTax is the decided Saint-Martin TGCA, included in the document total
+	// and separate from French VAT. Historical responses may omit it.
+	LocalTax *LocalTax `json:"localTax,omitempty"`
+}
+
+// LocalTax is Saint-Martin TGCA on a tax-decision or document line, included in
+// TotalTTC and the amount to collect. Under both tax sources, a registration in
+// force gives 4%; a declared exemption gives zero with the mention. Without
+// either the decision stays pending (com_taaf_supplier_local_tax_liable).
+type LocalTax struct {
+	// Code is an open string, currently "tgca_mf".
+	Code             string `json:"code"`
+	RateCentipercent int    `json:"rateCentipercent"` // 400 is 4.00 %
+	Amount           int    `json:"amount"`           // integer centimes
+	// Reference is the seller's registration number on a taxed line, or the
+	// exemption reason on an exempt line.
+	Reference string `json:"reference"`
+	// Exemption is an open string, or nil when no exemption applies.
+	Exemption *string `json:"exemption"`
 }
 
 // VATBreakdown is a VAT subtotal grouped by rate.
@@ -293,6 +323,9 @@ type Totals struct {
 	TotalTTC       int             `json:"totalTTC"`
 	AmountDue      int             `json:"amountDue"`
 	AmountPaid     int             `json:"amountPaid"`
+	// TotalLocalTax is the sum of line TGCA, in integer centimes, included in
+	// TotalTTC and the amount to collect; nil when absent, distinct from zero.
+	TotalLocalTax *int `json:"totalLocalTax,omitempty"`
 }
 
 // LifecycleEntry records a status change in the audit trail.
@@ -314,11 +347,20 @@ type ItemParams struct {
 	UnitPrice   int    `json:"unitPrice"`
 	VATRate     int    `json:"vatRate"`
 	VATCode     string `json:"vatCode"`
-	// VATexCode is an optional specific VATEX exemption code (BT-121), e.g.
-	// "VATEX-FR-261", used when the basis differs from the VAT category default.
+	// VATexCode is an optional open string from the official CIUS-FR list
+	// (88 codes), e.g. "VATEX-FR-CGI261-4". Legacy "VATEX-FR-261" and
+	// "VATEX-FR-AUTOLIQ" are accepted; new writes store and return the official
+	// codes "VATEX-FR-CGI261-4" and "VATEX-FR-AE".
 	VATexCode       string `json:"vatexCode,omitempty"`
 	DiscountPercent int    `json:"discountPercent,omitempty"`
 	Product         string `json:"product,omitempty"`
+	// Kind is "goods" or "service"; when absent, the unit determines it.
+	Kind string `json:"kind,omitempty"`
+	// SupplyCategory is an optional open string: "goods", "services",
+	// "electronically_supplied_services", "deposit" or "ancillary_costs".
+	// A quote declares it; conversion copies it unchanged to the draft invoice.
+	// Empty means undeclared, never an assumed service category.
+	SupplyCategory string `json:"supplyCategory,omitempty"`
 }
 
 // BuyerParams identifies the buyer (B2B recipient) on an invoice.
@@ -587,12 +629,14 @@ func (s *InvoiceService) List(params *InvoiceListParams) *InvoiceIterator {
 // for — the decision concludes the actual rate.
 type CommercialDraftLine struct {
 	// Reference is assigned server-side; the decision reuses it.
-	Reference      string               `json:"reference"`
-	Description    string               `json:"description"`
-	Quantity       string               `json:"quantity"`
-	Unit           string               `json:"unit"`
-	UnitPrice      int                  `json:"unitPrice"`
-	SupplyCategory string               `json:"supplyCategory"`
+	Reference   string `json:"reference"`
+	Description string `json:"description"`
+	Quantity    string `json:"quantity"`
+	Unit        string `json:"unit"`
+	UnitPrice   int    `json:"unitPrice"`
+	// SupplyCategory is an open string copied from the quote declaration;
+	// empty means undeclared and stays omitted when serialized.
+	SupplyCategory string               `json:"supplyCategory,omitempty"`
 	RateCategory   string               `json:"rateCategory"`
 	Discount       *TaxDecisionDiscount `json:"discount,omitempty"`
 	Product        string               `json:"product,omitempty"`

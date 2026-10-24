@@ -1,0 +1,116 @@
+{
+  "customer": {
+    "id": "cus_local_tax",
+    "object": "customer",
+    "name": "Local tax customer",
+    "type": "company",
+    "taxStatus": "taxable"
+  },
+  "taxDecision": {
+    "id": "taxdec_local_tax",
+    "object": "tax_decision",
+    "status": "final",
+    "sellerProfile": {
+      "localTaxRegistrations": [
+        {
+          "territory": "MF",
+          "reference": "MF-REG-2026",
+          "effectiveFrom": "2026-01-01",
+          "effectiveTo": null
+        }
+      ]
+    },
+    "lines": [
+      {
+        "reference": "taxed",
+        "description": "Local service",
+        "category": "services",
+        "quantity": "1",
+        "unitAmount": 10000,
+        "amountHT": 10000,
+        "amountVAT": 0,
+        "amountTTC": 10400,
+        "localTax": {
+          "code": "tgca_mf",
+          "rateCentipercent": 400,
+          "amount": 400,
+          "reference": "CGIsm art. 252",
+          "exemption": null
+        }
+      },
+      {
+        "reference": "exempt",
+        "description": "Exempt local service",
+        "category": "services",
+        "quantity": "1",
+        "unitAmount": 10000,
+        "amountHT": 10000,
+        "amountVAT": 0,
+        "amountTTC": 10000,
+        "localTax": {
+          "code": "tgca_mf",
+          "rateCentipercent": 0,
+          "amount": 0,
+          "reference": "CGIsm art. 253",
+          "exemption": "cgism_253"
+        }
+      }
+    ],
+    "totals": {
+      "totalHT": 20000,
+      "totalVAT": 0,
+      "totalLocalTax": 400,
+      "totalTTC": 20400
+    },
+    "amountToCharge": 20400
+  },
+  "invoice": {
+    "id": "inv_local_tax",
+    "object": "invoice",
+    "taxDecisionId": "taxdec_local_tax",
+    "items": [
+      {
+        "id": "li_taxed",
+        "description": "Local service",
+        "quantity": "1",
+        "unitPrice": 10000,
+        "lineAmount": 10000,
+        "vatRate": 0,
+        "vatAmount": 0,
+        "lineTotal": 10400,
+        "localTax": {
+          "code": "tgca_mf",
+          "rateCentipercent": 400,
+          "amount": 400,
+          "reference": "CGIsm art. 252",
+          "exemption": null
+        }
+      },
+      {
+        "id": "li_exempt",
+        "description": "Exempt local service",
+        "quantity": "1",
+        "unitPrice": 10000,
+        "lineAmount": 10000,
+        "vatRate": 0,
+        "vatAmount": 0,
+        "lineTotal": 10000,
+        "localTax": {
+          "code": "tgca_mf",
+          "rateCentipercent": 0,
+          "amount": 0,
+          "reference": "CGIsm art. 253",
+          "exemption": "cgism_253"
+        }
+      }
+    ],
+    "totals": {
+      "totalHT": 20000,
+      "totalVAT": 0,
+      "totalLocalTax": 400,
+      "totalTTC": 20400,
+      "amountDue": 20400,
+      "amountPaid": 0
+    }
+  }
+}

@@ -65,7 +65,8 @@
         "baseCents": 50000,
         "amountCents": 10000
       }
-    ]
+    ],
+    "notices": []
   },
   "taxSource": "facturino",
   "creditNoteType": "total",

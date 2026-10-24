@@ -93,6 +93,7 @@
     "paymentReporting": "none",
     "foreignTaxReviewRequired": false,
     "euB2cDestination": null,
+    "notices": [],
     "legalMentions": []
   },
   "number": null,

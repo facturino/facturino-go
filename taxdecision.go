@@ -18,6 +18,16 @@ const MaxIdempotencyKeyLength = 255
 // Only a final decision carries amounts. On pending_verification or
 // unsupported, Totals and AmountToCharge are nil — never zero: absent is not
 // "nothing to charge".
+//
+// A missing fact leaves pending_verification, with the fact and remedy in
+// Issues. Unmodelled local regimes, excluded EU VAT territories and the goods
+// regime of a non-taxable legal person carrying a VAT number are unsupported
+// under "facturino"; under "integration" they are final with a notice and
+// ForeignTaxReviewRequired, and the integrator declares and assumes the tax.
+// Both sources refuse a document mixing category O with any other category
+// (vat_category_o_split_required); issue two documents. Both also refuse an EU
+// address missing the postal code needed to distinguish VAT territories
+// (destination_regional_scope_undetermined). Act only on a final decision.
 type TaxDecision struct {
 	RawResponse `json:"-"`
 	Warnings    []*BuyerNatureWarning `json:"warnings,omitempty"`
@@ -26,7 +36,7 @@ type TaxDecision struct {
 	Livemode    bool                  `json:"livemode"`
 
 	CompanyID string `json:"companyId"`
-	// Status is "final", "pending_verification" or "unsupported".
+	// Status is "final", "pending_verification" or "unsupported"; an open string.
 	Status string `json:"status"`
 	// TaxSource says who determined the VAT: "facturino" (Facturino decided
 	// from the commercial lines and the territorial evidence) or "integration"
@@ -35,9 +45,12 @@ type TaxDecision struct {
 	CustomerID string               `json:"customerId"`
 	Customer   *TaxDecisionCustomer `json:"customer"`
 
-	SellerProfileID       string                 `json:"sellerProfileId"`
-	SellerProfileRevision int                    `json:"sellerProfileRevision"`
-	SellerProfile         map[string]interface{} `json:"sellerProfile,omitempty"`
+	SellerProfileID       string `json:"sellerProfileId"`
+	SellerProfileRevision int    `json:"sellerProfileRevision"`
+	// SellerProfile may include "localTaxRegistrations": a list of objects with
+	// territory (an open string, currently "MF"), reference, effectiveFrom
+	// (YYYY-MM-DD) and effectiveTo (YYYY-MM-DD or null).
+	SellerProfile map[string]interface{} `json:"sellerProfile,omitempty"`
 
 	Currency string `json:"currency"`
 	// PriceMode is "tax_exclusive" or "tax_inclusive".
@@ -96,17 +109,26 @@ type TaxDecision struct {
 	// exactly what is missing.
 	EuB2cDestination *TaxDecisionEuB2cDestination `json:"euB2cDestination"`
 
-	// ForeignTaxReviewRequired reports that a foreign tax may apply. Facturino
-	// decides French VAT and the matching French obligations; this case must be
-	// reviewed outside Facturino.
+	// ForeignTaxReviewRequired reports that a foreign tax needs review outside
+	// Facturino. Unmodelled cases accepted under "integration" carry a notice;
+	// the integrator declares and assumes the tax. Saint-Martin TGCA is decided
+	// separately in LocalTax under both sources.
 	ForeignTaxReviewRequired bool `json:"foreignTaxReviewRequired"`
 
-	Vies                  *ViesResult                  `json:"vies"`
+	Vies *ViesResult `json:"vies"`
+	// LegalCategory is the SIRENE consultation frozen with the decision; nil
+	// when no consultation was due, including historical responses.
+	LegalCategory         *TaxDecisionLegalCategory    `json:"legalCategory,omitempty"`
 	LocationEvidence      []*LocationEvidenceResult    `json:"locationEvidence"`
 	NonEuBusinessEvidence *NonEuBusinessEvidenceResult `json:"nonEuBusinessEvidence"`
 
-	// Issues says what is missing when the decision is not final.
+	// Issues names the fact and remedy on pending_verification, or explains the
+	// refusal on unsupported. Empty on a final decision.
 	Issues []*TaxDecisionIssue `json:"issues"`
+	// Notices says what the decision retained and what the seller can do next.
+	// Always present, empty when there is nothing to report. Notices never stand
+	// for a missing fact: show them to the seller, and act only on a final decision.
+	Notices []*TaxDecisionNotice `json:"notices"`
 	// ObligationReasons says why each axis carries the obligation it does.
 	ObligationReasons []*TaxDecisionObligationReason `json:"obligationReasons"`
 
@@ -118,11 +140,33 @@ type TaxDecision struct {
 	Updated string `json:"updated"`
 }
 
+// TaxDecisionLegalCategory is the SIRENE legal-category consultation frozen
+// with the decision, without other registry data.
+type TaxDecisionLegalCategory struct {
+	// Source is the registry consulted, currently "sirene".
+	Source string `json:"source"`
+	// SIREN is the nine-digit registration number consulted.
+	SIREN string `json:"siren"`
+	// Status is an open string: "found", "not_found" or "unavailable".
+	// The latter two leave legal_category_unresolved pending; they do not
+	// establish that the buyer is non-taxable.
+	Status string `json:"status"`
+	// LegalCategoryCode is the INSEE code returned by the registry, or nil for
+	// JSON null. Codes stay open strings.
+	LegalCategoryCode *string `json:"legalCategoryCode"`
+	// CheckedAt is the civil consultation date (YYYY-MM-DD), or that of the
+	// cached registry response used by the decision.
+	CheckedAt string `json:"checkedAt"`
+}
+
 // TaxDecisionTotals holds the decided totals, in integer centimes.
 type TaxDecisionTotals struct {
 	TotalHT  int `json:"totalHT"`
 	TotalVAT int `json:"totalVAT"`
 	TotalTTC int `json:"totalTTC"`
+	// TotalLocalTax is the sum of line TGCA, in integer centimes, included in
+	// TotalTTC and AmountToCharge; nil when absent, distinct from zero.
+	TotalLocalTax *int `json:"totalLocalTax,omitempty"`
 }
 
 // TaxDecisionVatBreakdown is one VAT group of a decision.
@@ -139,17 +183,48 @@ type TaxDecisionVatBreakdown struct {
 type TaxDecisionCustomer struct {
 	CustomerID string `json:"customerId"`
 	Name       string `json:"name"`
-	// Nature is "business" or "consumer".
-	Nature                   string `json:"nature"`
-	NatureBasis              string `json:"natureBasis"`
-	TerritoryID              string `json:"territoryId"`
-	TerritoryKind            string `json:"territoryKind"`
-	DeclaredCountry          string `json:"declaredCountry"`
-	DeclaredPostalCode       string `json:"declaredPostalCode,omitempty"`
-	LegalRegistrationID      string `json:"legalRegistrationId,omitempty"`
-	VatNumber                string `json:"vatNumber,omitempty"`
-	CrossBorderTaxableStatus string `json:"crossBorderTaxableStatus"`
-	BusinessStatusBasis      string `json:"businessStatusBasis"`
+	// Nature is "business" or "consumer": the nature the decision is taken on.
+	// A missing status fact leaves the decision pending, except for the legal
+	// presumption described by NatureBasis below.
+	Nature string `json:"nature"`
+	// NatureBasis is how the nature was established: "declared_consumer",
+	// "declared_business_with_registration",
+	// "declared_business_with_valid_vat_number",
+	// "declared_business_without_identification", "declared_non_taxable" or
+	// "declared_business_not_evidenced". Values stay open strings.
+	//
+	// "declared_business_not_evidenced" applies only under art. 18(2), second
+	// subparagraph, of Implementing Regulation (EU) 282/2011: telecommunications,
+	// broadcasting and electronically supplied services to a buyer established
+	// in the EU VAT territory (Monaco included) who communicated no VAT number.
+	// The buyer is treated as a non-taxable person, with a notice. A communicated
+	// but unvalidated number leaves eu_b2b_vat_number_not_validated pending;
+	// INSEE categories 7, 8 and 9 without taxStatus keep their refusal.
+	//
+	// "declared_non_taxable" means the customer declared taxStatus: non_taxable.
+	// A legal person carrying a VAT number is checked through VIES: a valid
+	// number makes its services follow taxable-person rules (CGI art. 259-0);
+	// an unreachable VIES leaves vies_unavailable pending.
+	NatureBasis         string `json:"natureBasis"`
+	TerritoryID         string `json:"territoryId"`
+	TerritoryKind       string `json:"territoryKind"`
+	DeclaredCountry     string `json:"declaredCountry"`
+	DeclaredPostalCode  string `json:"declaredPostalCode,omitempty"`
+	LegalRegistrationID string `json:"legalRegistrationId,omitempty"`
+	// VatNumber is the VAT number as DECLARED on the customer record, kept for
+	// audit whatever became of it.
+	VatNumber string `json:"vatNumber,omitempty"`
+	// RetainedVatNumber is the VAT number RETAINED by the decision: the only one
+	// the document, its electronic invoice (UBL, CII, Factur-X) and the
+	// e-reporting carry. It is nil without a declared number, when the number is
+	// set aside because the national registration establishes the taxable status
+	// (notice detail code "vat_number_ignored_national_registration"), or when
+	// the buyer is treated as a non-taxable person. It is also nil on a decision
+	// taken before the field existed, where the declared number stands for the
+	// retained one.
+	RetainedVatNumber        *string `json:"retainedVatNumber,omitempty"`
+	CrossBorderTaxableStatus string  `json:"crossBorderTaxableStatus"`
+	BusinessStatusBasis      string  `json:"businessStatusBasis"`
 }
 
 // TaxDecisionLine is one decided line. Amounts are integer centimes and are nil
@@ -159,7 +234,12 @@ type TaxDecisionLine struct {
 	Description string `json:"description"`
 	// Category is the fiscal nature: "goods", "services",
 	// "electronically_supplied_services", "deposit" or "ancillary_costs".
-	Category string `json:"category"`
+	// Nil only on a pending decision for a quote/draft line whose supply
+	// category was not declared (supply_category_not_declared), without amounts.
+	// A service line whose two readings give the same complete tax result is
+	// decided as "services" with a notice. POST /v1/tax-decisions still requires
+	// Category on every input line under both sources.
+	Category *string `json:"category"`
 	// RelatedCategory names the principal supply a deposit or an ancillary
 	// cost follows.
 	RelatedCategory   string `json:"relatedCategory,omitempty"`
@@ -176,8 +256,10 @@ type TaxDecisionLine struct {
 
 	Treatment       string `json:"treatment,omitempty"`
 	VatCategoryCode string `json:"vatCategoryCode,omitempty"`
-	VatexCode       string `json:"vatexCode,omitempty"`
-	LegalMention    string `json:"legalMention,omitempty"`
+	// VatexCode is an open string from the official CIUS-FR list (88 codes),
+	// e.g. "VATEX-FR-CGI261-4", "VATEX-FR-CGI295" or "VATEX-EU-132-1I".
+	VatexCode    string `json:"vatexCode,omitempty"`
+	LegalMention string `json:"legalMention,omitempty"`
 
 	RateCentipercent       *int   `json:"rateCentipercent"`
 	RateBasis              string `json:"rateBasis,omitempty"`
@@ -188,6 +270,11 @@ type TaxDecisionLine struct {
 	AmountHT  *int `json:"amountHT"`
 	AmountVAT *int `json:"amountVAT"`
 	AmountTTC *int `json:"amountTTC"`
+	// LocalTax is the decided Saint-Martin TGCA, separate from French VAT.
+	// Under both sources, a registration in force gives 4%; a declared exemption
+	// gives zero with the mention. Without either the decision stays pending
+	// (com_taaf_supplier_local_tax_liable).
+	LocalTax *LocalTax `json:"localTax,omitempty"`
 
 	InvoiceChannel       string `json:"invoiceChannel,omitempty"`
 	TransactionReporting string `json:"transactionReporting,omitempty"`
@@ -204,8 +291,88 @@ type TaxDecisionDiscount struct {
 
 // TaxDecisionIssue reports what prevents a decision from being final.
 type TaxDecisionIssue struct {
-	Code    string `json:"code"`
-	Message string `json:"message,omitempty"`
+	// Code is an open string. Missing facts include
+	// "business_status_not_evidenced", "eu_b2b_vat_number_not_validated",
+	// "non_eu_business_status_not_evidenced", "vies_unavailable",
+	// "location_evidence_insufficient", "location_evidence_contradictory",
+	// "location_evidence_relief_undetermined", "eu_threshold_state_missing",
+	// "goods_movement_unknown", "supply_category_not_declared" and
+	// "com_taaf_supplier_local_tax_liable". "supply_category_not_declared" asks
+	// for a quote/draft line's fiscal nature: no nature was declared, and the
+	// decision cannot retain one complete tax result. Category is nil and no
+	// amounts are decided.
+	// "vat_category_o_split_required" refuses mixed category O documents under
+	// both sources (EN 16931 BR-O-11 to BR-O-14): issue two documents.
+	// "non_taxable_legal_person_goods_regime_not_modelled" refuses, under
+	// "facturino", goods dispatched to another member state or XI for a
+	// non-taxable legal person that communicated a VAT number; "integration"
+	// retains the supplied treatment with a notice and ForeignTaxReviewRequired.
+	Code string `json:"code"`
+	// DetailCode is a more precise, equally stable reason, when Code alone does
+	// not say what to complete. "einvoicing_buyer_registration_required": a buyer
+	// declared as a business without a SIRET, while the electronic invoice the
+	// seller must issue requires the buyer's SIREN (CGI art. 242 nonies A).
+	// "tax_status_not_declared": INSEE categories 7, 8 or 9 without taxStatus.
+	// "legal_category_unresolved": SIRENE could not give the legal category.
+	// "french_vat_and_tgca_cumulation": a general service to a Saint-Martin
+	// consumer without LocalTaxExemption; com_taaf_local_regime_not_sourced is
+	// unsupported under "facturino", a final notice under "integration".
+	// Open string; empty when the code says it all.
+	DetailCode string `json:"detailCode,omitempty"`
+	Message    string `json:"message,omitempty"`
+	// Reference is the normative reference.
+	Reference string `json:"reference,omitempty"`
+	// LineID is the reference of the line concerned; empty when the reason covers
+	// the whole operation.
+	LineID string `json:"lineId,omitempty"`
+}
+
+// TaxDecisionNotice says what the decision retained and what the seller can do
+// next. Notices never stand for a missing fact: Issues alone lists what keeps a
+// decision from being final. Show notices to the seller; act only on final.
+type TaxDecisionNotice struct {
+	// Code is an open string. Examples: "business_status_not_evidenced" within
+	// the art. 18(2) presumption described by TaxDecisionCustomer.NatureBasis;
+	// "destination_mechanism_missing" (destination VAT is invoiced, with
+	// registration guidance); "location_evidence_contradictory" (two concordant
+	// items of different kinds establish the consumer territory, or every
+	// possible territory gives the same complete tax result); a VAT number set
+	// aside because national registration establishes status.
+	// "supply_category_not_declared" retains "services" for a service line
+	// without a declared supply category when both "services" and
+	// "electronically_supplied_services" give the same complete tax result
+	// (VAT, category, mentions, local tax and the three obligation axes).
+	//
+	// Under "integration", "com_taaf_local_regime_not_sourced",
+	// "com_taaf_local_tax_not_determined",
+	// "com_taaf_payment_withholding_not_modelled",
+	// "eu_special_territory_not_implemented" and
+	// "non_taxable_legal_person_goods_regime_not_modelled" carry the unmodelled
+	// case accepted with ForeignTaxReviewRequired; the integrator declares and
+	// assumes the tax. Under "facturino" these cases are unsupported issues.
+	// Treat an unknown code as a generic notice.
+	Code string `json:"code"`
+	// DetailCode is a more precise, equally stable reason, when Code alone does
+	// not say what to do. On "destination_mechanism_missing": "threshold_exceeded"
+	// (the one-stop-shop registration period runs from the first operation above
+	// the threshold), "destination_option" or
+	// "multi_member_state_establishment" (from the first operation taxed at
+	// destination). On "vat_number_territory_mismatch" or
+	// "eu_b2b_vat_number_not_validated":
+	// "vat_number_ignored_national_registration" (number set aside because the
+	// national registration establishes the business status: the buyer stays a
+	// business, with no VAT number on the document). Empty when the code says it
+	// all. "concordant_evidence" and "same_treatment" name the location rule;
+	// "french_vat_and_tgca_cumulation" names a general service to a Saint-Martin
+	// consumer without LocalTaxExemption under "integration". Values stay open.
+	DetailCode string `json:"detailCode,omitempty"`
+	// Message is a diagnostic in English, free of personal data.
+	Message string `json:"message"`
+	// Reference is the normative reference of the notice.
+	Reference string `json:"reference,omitempty"`
+	// LineID is the reference of the line concerned; empty when the notice covers
+	// the whole operation.
+	LineID string `json:"lineId,omitempty"`
 }
 
 // TaxDecisionEuB2cDestination is what the EU B2C destination rule concluded.
@@ -458,8 +625,8 @@ type TaxDecisionLineParams struct {
 	// Reference is a stable caller-side identifier, echoed on the decided line.
 	Reference   string `json:"reference"`
 	Description string `json:"description"`
-	// Category is "goods", "services", "electronically_supplied_services",
-	// "deposit" or "ancillary_costs".
+	// Category is required under both sources: "goods", "services",
+	// "electronically_supplied_services", "deposit" or "ancillary_costs".
 	Category string `json:"category"`
 	// RelatedCategory is required when Category is "deposit" or
 	// "ancillary_costs": it names the principal supply they follow.
@@ -469,8 +636,13 @@ type TaxDecisionLineParams struct {
 	// Omitted when empty: a line whose VAT the INTEGRATION supplies states a
 	// rate, not a band, and the API refuses the key outright on that source.
 	RateCategory string `json:"rateCategory,omitempty"`
-	// PlaceOfSupplyRule claims a territoriality rule. Only "general" is
-	// implemented; anything else is reported as unsupported rather than guessed.
+	// PlaceOfSupplyRule is the territoriality rule of the operation; "general"
+	// when empty, under both sources. On the "integration" source it is the rule
+	// under which the declared PlaceOfSupply is checked against the place
+	// Facturino decides on the same facts. A derogation the engine does not
+	// implement (immovable property, event…) makes the decision unsupported,
+	// exactly as under the "facturino" source: declaring it never skips that
+	// check.
 	PlaceOfSupplyRule string `json:"placeOfSupplyRule,omitempty"`
 	// GoodsMovement is "stays_in_seller_territory",
 	// "dispatched_to_buyer_territory" or "unknown".
@@ -479,7 +651,14 @@ type TaxDecisionLineParams struct {
 	// consumer established in another member state: that movement decides
 	// whether the intra-EU distance sale rule applies (Directive 2006/112/EC
 	// art. 33(a)), and it is never assumed.
+	// An unknown movement leaves goods_movement_unknown pending, without amounts.
 	GoodsMovement string `json:"goodsMovement,omitempty"`
+	// LocalTaxExemption is an open string: "cgism_253" and
+	// "not_used_in_saint_martin" are currently documented. Omitted when empty.
+	// Under both sources, a declared exemption gives zero TGCA with the mention;
+	// otherwise a registration in force gives 4%. Without either, the decision
+	// stays pending (com_taaf_supplier_local_tax_liable).
+	LocalTaxExemption string `json:"localTaxExemption,omitempty"`
 	// UnitAmount is the unit price in integer centimes, in the request's
 	// PriceMode.
 	UnitAmount int `json:"unitAmount"`
@@ -495,17 +674,28 @@ type TaxDecisionLineParams struct {
 	// VatCode is the supplied VAT category code: "S", "Z", "E", "AE", "K",
 	// "G" or "O". "integration" source only.
 	VatCode string `json:"vatCode,omitempty"`
-	// VatexCode justifies a zero rate ("VATEX-EU-G", "VATEX-EU-AE",
-	// "VATEX-FR-FRANCHISE"…). "integration" source only.
+	// VatexCode justifies a zero rate using the official CIUS-FR list (88 codes,
+	// e.g. "VATEX-FR-CGI261-4", "VATEX-FR-AE", "VATEX-EU-I", "VATEX-EU-J").
+	// Open string, "integration" source only. Legacy "VATEX-FR-261" and
+	// "VATEX-FR-AUTOLIQ" are accepted; new writes store and return the official
+	// codes "VATEX-FR-CGI261-4" and "VATEX-FR-AE". Issued documents keep their code.
 	VatexCode string `json:"vatexCode,omitempty"`
 	// PlaceOfSupply is the territory the supplied VAT concluded on
-	// ("FR-MET", "DE", "GB"…). "integration" source only.
+	// ("FR-MET", "DE", "GB"…), 2 to 16 characters. "integration" source only.
+	//
+	// It must be the place Facturino decides on the same facts, otherwise the
+	// request is refused with 422 integration_vat_incoherent; it feeds the
+	// obligation axes, never a VAT calculation.
 	//
 	// Required as soon as the buyer is established in a French overseas
 	// collectivity or the TAAF ("PM", "BL", "MF", "PF", "NC", "WF", "TF"):
 	// the place is what says whether the local tax of that collectivity is at
-	// stake, and it is never assumed. A place located in one of those seven
-	// makes the decision non-final, except the sourced New Caledonian B2B case.
+	// stake, and it is never assumed. An operation located in one of those seven
+	// is outside the scope of French VAT: category "O" at 0. Unmodelled local
+	// taxes give an integration notice with ForeignTaxReviewRequired; cases
+	// settled by a collectivity's text stay final under both sources. Saint-Martin
+	// TGCA is decided separately in LocalTax under both sources. VatRate, VatCode
+	// and VatexCode describe French VAT only.
 	PlaceOfSupply string `json:"placeOfSupply,omitempty"`
 }
 
@@ -545,7 +735,7 @@ type TaxDecisionParams struct {
 // same operation after supplying missing evidence, create a new decision with
 // RetryOfTaxDecisionID.
 //
-// Two equal fiscal sources share the resource, declared with TaxSource:
+// Two fiscal sources share the resource, declared with TaxSource:
 // "facturino" (Facturino determines the VAT) and "integration" (the caller
 // supplies the VAT of every line, validated for coherence). Both produce the
 // same decision object, feed the same reporting obligations engine and back

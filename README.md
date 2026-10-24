@@ -62,6 +62,11 @@ func main() {
     if !decision.IsFinal() {
         log.Fatalf("decision not final: %v", decision.Issues)
     }
+    //    Notices say what the decision retained and what the seller can do next.
+    //    Show them to the seller; they never stand for a missing fact.
+    for _, notice := range decision.Notices {
+        log.Printf("notice %s: %s", notice.Code, notice.Message)
+    }
 
     // 3. Create the decision-backed draft immediately: no VAT is restated.
     invoice, err := client.Invoices.Create(&facturino.InvoiceParams{
@@ -191,30 +196,147 @@ Stripe carries it in `metadata` (`facturino_tax_decision_id`), PayPal in
 
 | Field | Meaning |
 |---|---|
-| `Status` | `final`, `pending_verification` or `unsupported`. Only `final` carries amounts. |
+| `Status` | `final`, `pending_verification` or `unsupported`. Only `final` carries amounts. A missing fact leaves `pending_verification`; `unsupported` explains a refusal. |
 | `AmountToCharge` | Exact amount to debit, integer centimes. `nil` unless final. |
-| `Totals` | `TotalHT` / `TotalVAT` / `TotalTTC`, integer centimes. `nil` unless final. |
+| `Totals` | `TotalHT` / `TotalVAT` / `TotalTTC` and optional `TotalLocalTax`, integer centimes. `nil` unless final. Local tax is included in `TotalTTC` and `AmountToCharge`. |
+| `Lines[].Category` | `*string`: the declared fiscal nature, or `services` when both readings of an undeclared service give the same complete result. `nil` only on a pending quote/draft line with `supply_category_not_declared`. |
 | `InvoiceChannel` | `einvoicing` or `none` — whether the invoice travels the network. |
 | `TransactionReporting` | `ereporting`, `none` or `outside_scope`. |
 | `PaymentReporting` | `fr212`, `ereporting` or `none`. |
 | `SettledObligations` | The axes French law settles DESPITE a non-final decision. `nil` when final — the three axes above are then the settled ones. Each axis inside is `nil` when it depends on the treatment that could not be concluded. It authorises nothing. |
 | `ForeignTaxReviewRequired` | A foreign tax may apply; review it outside Facturino. |
 | `Vies` | VIES status only (`valid`, `invalid`, `unavailable`, `invalid_format`). |
-| `Issues` | What is missing, when the decision is not final. |
+| `LegalCategory` | Optional `*TaxDecisionLegalCategory`: the SIRENE consultation frozen with the decision (`Source`, `SIREN`, `Status`, nullable `LegalCategoryCode`, `CheckedAt`). `nil` when no consultation was due, including historical responses. |
+| `Issues` | The missing fact and remedy on `pending_verification`, or why `unsupported` refuses the case. Each entry has a stable `Code` and, when the code alone is not enough, a `DetailCode`, a `Reference` and the `LineID` concerned. |
+| `Notices` | What the decision retained and what the seller can do next. Always present, empty when there is nothing to report. Notices never stand for a missing fact: show them to the seller, and act only on a `final` decision. |
+| `Customer.RetainedVatNumber` | The VAT number the decision retained — the only one the document and its electronic invoice carry. `nil` when none is retained. `Customer.VatNumber` stays the number as declared. |
 | `ObligationReasons` | Why each axis carries the obligation it does. |
 | `ExpiresAt` / `Expired` | Past this instant the decision no longer opens a payment. |
 
-Facturino decides **French VAT and the matching French obligations**. It does
-not provide worldwide tax compliance: when a foreign tax may apply, the decision
+Facturino decides **French VAT and the matching French obligations**, and the
+Saint-Martin TGCA described below. When another foreign tax may apply, the decision
 says so through `ForeignTaxReviewRequired`. An operation whose `InvoiceChannel`
 is `none` is not deposited on a certified platform — its obligation, if any,
 goes through e-reporting.
 
+### Undeclared supply categories
+
+A service line of a quote or commercial draft without a declared
+`SupplyCategory` is read under `services` and `electronically_supplied_services`.
+The same complete result (VAT, category, mentions, local tax and the three
+obligation axes) gives a `final` decision, `Category` pointing to `"services"`
+and a `supply_category_not_declared` notice. Otherwise the decision is
+`pending_verification`, with a `supply_category_not_declared` issue, no decided
+amounts and `Category == nil`. A line with neither `Kind` nor `SupplyCategory`
+stays pending without either reading. Historical decided categories are kept.
+
+`TaxDecisionLine.Category` is now `*string`: check for `nil` before
+dereferencing it. This describes responses from quotes and drafts;
+`POST /v1/tax-decisions` still requires `TaxDecisionLineParams.Category` on
+every line under both sources. Its request field remains a required string.
+
+### Optional local-tax fields
+
+`CustomerParams.TaxStatus` and `CustomerUpdateParams.TaxStatus` accept
+`"taxable"` or `"non_taxable"`; an empty string omits the field. Read it back
+on `Customer.TaxStatus`, empty on older responses that omit it.
+
+`TaxDecisionCustomer.NatureBasis` can read `declared_non_taxable` for a customer
+declared `taxStatus: non_taxable`. A legal person carrying a VAT number is checked
+through VIES: a valid number makes its services follow taxable-person rules
+(CGI art. 259-0); an unreachable VIES leaves `vies_unavailable` pending.
+
+`declared_business_not_evidenced` applies only within art. 18(2), second
+subparagraph, of Implementing Regulation (EU) 282/2011: telecommunications,
+broadcasting and electronically supplied services to a buyer established in the
+EU VAT territory (Monaco included) who communicated no VAT number. The buyer is
+treated as a non-taxable person, with a notice. A communicated but unvalidated
+number leaves `eu_b2b_vat_number_not_validated` pending; INSEE categories 7, 8
+and 9 without `taxStatus` keep their refusal.
+
+`TaxDecision.LegalCategory` records only the SIRENE consultation: `Source`
+(currently `"sirene"`), the nine-digit `SIREN`, `Status` (`"found"`, `"not_found"`
+or `"unavailable"`), `LegalCategoryCode` (`*string`, `nil` for JSON `null`) and
+`CheckedAt` (civil date, `YYYY-MM-DD`, including a cached consultation date).
+`"not_found"` and `"unavailable"` leave `legal_category_unresolved` pending;
+they do not establish that the buyer is non-taxable. Codes, `DetailCode`,
+`NatureBasis` and legal-category statuses and codes remain open strings.
+
+The decision's `SellerProfile` map can include `localTaxRegistrations`, a list
+of objects with `territory` (currently `"MF"`), `reference`, `effectiveFrom`
+(`YYYY-MM-DD`) and `effectiveTo` (`YYYY-MM-DD` or `null`). The key is optional.
+
+`TaxDecisionLineParams.LocalTaxExemption` is optional. The documented values
+are `"cgism_253"` and `"not_used_in_saint_martin"`; an empty string omits it.
+On responses, `TaxDecisionLine.LocalTax` and `LineItem.LocalTax` share the
+`LocalTax` type: `Code` (currently `"tgca_mf"`), `RateCentipercent` (`400` is
+4.00 %), `Amount` (integer centimes), `Reference` and `Exemption` (`*string`,
+`nil` for JSON `null`). `Code`, `territory` and both exemption fields are open
+strings: accept future values as well.
+
+`TaxDecisionTotals.TotalLocalTax` and document `Totals.TotalLocalTax` are
+optional `*int` amounts in centimes. A `nil` pointer means absent, while a
+pointer to `0` preserves an explicit zero. A missing `LocalTax` is `nil`.
+`TotalLocalTax` is included in `TotalTTC` and the amount to collect. Under both
+sources, a registration in force gives 4% TGCA per line; a declared exemption
+gives 0 with the mention. Without either, the decision is `pending_verification`
+(`com_taaf_supplier_local_tax_liable`). TGCA is separate from French VAT.
+Use the amounts returned by the API; these fields do not change the API
+contract date (`2026-09-01`).
+
+### Notices: what a decision retained
+
+Always act only on a `final` decision, and read its `Notices` too. Notices explain
+a retained result: destination VAT invoiced without a declared mechanism
+(`destination_mechanism_missing`, with registration guidance), a consumer
+territory established by two concordant items of different kinds or by the same
+complete tax result on every possible territory, a VAT number set aside because
+national registration establishes status, and unmodelled local taxes under
+`integration`. The art. 18(2) presumption above also carries a notice. Notices
+never stand for a missing fact. Show them to the seller: they say what the
+decision retained and what the seller can do next.
+
+```go
+if decision.IsFinal() {
+    for _, notice := range decision.Notices {
+        // Code is stable; DetailCode, Reference and LineID are optional.
+        fmt.Println(notice.Code, notice.DetailCode, notice.Message, notice.LineID)
+    }
+}
+```
+
+The list of codes can grow: treat an unknown code as a generic notice. Invoices
+and credit notes freeze the notices of their decision under the `notices` key of
+their `TaxSnapshot`; a credit note repeats those of the invoice it credits.
+
 ### Missing evidence, then a retry
 
-Supply the evidence and retry the SAME operation. Send the territorial
-**signal**, never the raw one: a country and, where the territory needs it, a
-postal code — not an IP address, a PSP payload or bank account details.
+Facturino never replaces a missing fact with an assumption. A missing fact leaves
+`pending_verification`, without amounts, with the fact and remedy in `Issues`:
+
+| Issue code | What to complete |
+| --- | --- |
+| `business_status_not_evidenced` | Evidence of the business buyer's status. `tax_status_not_declared` names INSEE categories 7, 8 and 9 without `taxStatus`; `legal_category_unresolved` means SIRENE could not give the legal category; `einvoicing_buyer_registration_required` requests the SIRET needed for the electronic invoice. |
+| `eu_b2b_vat_number_not_validated` | Validate the communicated EU VAT number; the art. 18(2) presumption does not apply to a communicated number. |
+| `non_eu_business_status_not_evidenced` | Evidence of the non-EU buyer's business status. |
+| `vies_unavailable` | Retry the VIES check when the service is reachable. |
+| `location_evidence_insufficient`, `location_evidence_contradictory` | Supply sufficient, concordant location evidence. |
+| `location_evidence_relief_undetermined` | Declare the location-evidence threshold figures or supply a second item of evidence. |
+| `eu_threshold_state_missing` | Open the annual ledger and declare the EUR 10,000 threshold figures. |
+| `goods_movement_unknown` | Declare the movement of the goods. |
+| `com_taaf_supplier_local_tax_liable` | Supply a Saint-Martin TGCA registration in force or declare an applicable `LocalTaxExemption`. |
+
+An `unsupported` decision explains why the case is refused. Under both sources,
+a document mixing category `O` with any other category is `unsupported`
+(`vat_category_o_split_required`, EN 16931 BR-O-11 to BR-O-14): issue two
+documents. An EU address missing the postal code needed to distinguish VAT
+territories stays non-final (`destination_regional_scope_undetermined`): supply
+the postal code.
+
+When a decision is pending, supply the evidence and retry the SAME operation.
+Send the territorial **signal**, never the raw one: a
+country and, where the territory needs it, a postal code — not an IP address, a
+PSP payload or bank account details.
 
 ```go
 params.RetryOfTaxDecisionID = pending.ID
@@ -255,7 +377,10 @@ coherence of the whole (a positive rate with an exemption code, a franchise
 seller charging VAT, a reverse charge to a consumer… are refused with
 `integration_vat_incoherent`) and never silently corrects a rate. The
 decision, the invoice and the reporting obligations then work exactly as with
-`TaxSource: "facturino"` — the two journeys are equals.
+`TaxSource: "facturino"`. Unmodelled local regimes, excluded EU VAT territories
+and the goods regime of a non-taxable legal person carrying a VAT number stay
+open under `integration`, as described below: the integrator declares and
+assumes the tax.
 
 ```go
 standardRate := 2000
@@ -287,40 +412,82 @@ invoice, err := client.Invoices.Create(&facturino.InvoiceParams{
 })
 ```
 
-### What this source is not
+### French VAT and VATEX codes
 
-`VatRate`, `VatCode` and `VatexCode` describe **French VAT**. The contract has no
-local-tax jurisdiction, no local tax scheme and no withholding, so this source is
-not a way to pass one through.
+`VatRate`, `VatCode` and `VatexCode` describe **French VAT**. Saint-Martin TGCA is
+decided separately in `LocalTax` under both sources. For other unmodelled local
+taxes, an integration notice and `ForeignTaxReviewRequired` leave the integrator
+responsible for declaring and accounting for the tax.
 
-Where a local tax of a French overseas collectivity or the TAAF
-(Saint-Pierre-et-Miquelon, Saint-Barthélemy, Saint-Martin, French Polynesia, New
-Caledonia, Wallis-and-Futuna, TAAF) can change what you invoice — or what you
-actually collect — the decision is **not final under either source**, with the
-same issue code and no amount:
+`vatexCode` on invoice lines, credit-note lines, products and tax-decision lines
+uses the official CIUS-FR list (88 codes, including `VATEX-FR-CGI261-4`,
+`VATEX-FR-CGI261-7`, `VATEX-FR-CGI295`, `VATEX-FR-AE`, `VATEX-EU-132-1I`,
+`VATEX-EU-I` and `VATEX-EU-J`). The Go fields remain open strings: `VATexCode`
+on document lines and products, `VatexCode` on tax-decision lines. Legacy
+`VATEX-FR-261` and `VATEX-FR-AUTOLIQ` remain accepted on input; new writes store
+and return `VATEX-FR-CGI261-4` and `VATEX-FR-AE`, respectively. A document issued
+earlier keeps the code it was issued with. The API contract date remains
+2026-09-01.
 
-| Issue code | When |
+### Overseas collectivities and the TAAF
+
+Saint-Pierre-et-Miquelon (`PM`), Saint-Barthélemy (`BL`), Saint-Martin (`MF`),
+French Polynesia (`PF`), New Caledonia (`NC`), Wallis-and-Futuna (`WF`) and the
+TAAF (`TF`) are not part of France for VAT (CGI art. 256-0). Each legislates its
+own indirect taxation, and no answer is deduced from a neighbour.
+
+**Buyer established in one of the seven.** For an operation *located* in the
+collectivity, French VAT is out of scope: the line is category `O` at 0.
+Unmodelled cases are `unsupported` under `facturino`, and `final` under
+`integration` with a notice carrying the same code and
+`ForeignTaxReviewRequired: true`; the integrator declares and assumes the tax.
+
+| Unmodelled case code | When |
 |---|---|
-| `com_taaf_local_tax_not_determined` | Non-taxable buyer, operation located in the collectivity (electronically supplied service, CGI art. 259 D). |
-| `com_taaf_local_regime_not_sourced` | Taxable buyer, but no official act of the collectivity states who bears its tax. |
-| `com_taaf_payment_withholding_not_modelled` | French Polynesia: the client withholds part of the payment at source. |
-| `seller_com_taaf_local_tax_not_determined` | The seller itself is established in one of the seven. |
+| `com_taaf_local_tax_not_determined` | An overseas local tax cannot be determined for a non-taxable buyer; a consumer does not self-assess the supplier's tax. |
+| `com_taaf_local_regime_not_sourced` | Wallis-and-Futuna, TAAF: no official act held states who bears the tax. |
+| `com_taaf_payment_withholding_not_modelled` | French Polynesia: local tax and payment withholding are not modelled. |
 
-The one sourced exception stays final under both sources: a B2B service located
-in **New Caledonia** supplied by a seller **not established in New Caledonia**,
-where art. Lp. 507-1 makes the taxable customer account for the taxe générale sur
-la consommation itself. That article reaches only a supplier established outside
-the territory. A seller established in New Caledonia is the ordinary collector of
-the taxe générale sur la consommation on its own sales, at a rate this contract
-does not carry, so its decision is not final either
-(`seller_com_taaf_local_tax_not_determined`).
+Overseas cases settled by a collectivity's text stay `final` under both sources:
+New Caledonia where the taxable buyer accounts for the tax (art. Lp. 507-1),
+Saint-Barthélemy, Saint-Pierre-et-Miquelon, and goods shipped to Saint-Martin.
 
-Because of this, `PlaceOfSupply` is **required** on every line as soon as the
-buyer is established in one of the seven — the place of the operation is what
-says whether the local tax is at stake, and it is never assumed
-(`422 integration_vat_incoherent` otherwise). A place located in France (goods
-that never leave the territory, a general B2C service) keeps the decision final
-as anywhere else.
+**Saint-Martin TGCA, under both sources.** A registration in force in
+`SellerProfile.localTaxRegistrations` gives 4% per line in `LocalTax`; a declared
+`LocalTaxExemption` (`cgism_253`, `not_used_in_saint_martin`) gives 0 with the
+mention. Without either, the decision is `pending_verification`
+(`com_taaf_supplier_local_tax_liable`). `Totals.TotalLocalTax` is included in
+`TotalTTC` and the amount to collect; TGCA is separate from French VAT.
+
+A general service to a Saint-Martin consumer without `LocalTaxExemption` carries
+`com_taaf_local_regime_not_sourced`, `detailCode: french_vat_and_tgca_cumulation`:
+`unsupported` under `facturino`, `final` under `integration` with a notice and
+`ForeignTaxReviewRequired: true`.
+
+**Seller established in one of the seven.** The decision is **not final**
+(`unsupported`), with the *issue* `seller_com_taaf_local_tax_not_determined`: the
+local tax of its collectivity decides what it invoices, and that is outside the
+perimeter. This one is an issue, not a notice.
+
+Under the `integration` source, a positive French VAT rate on a
+line located in a collectivity answers `422 integration_vat_incoherent`: only
+category `O` at 0 (`VATEX-EU-O`) describes such a place, and a positive rate
+would declare a local tax as French VAT. `PlaceOfSupply` is **required** on every
+line as soon as the buyer is established in one of the seven — the place of the
+operation is what says whether the local tax is at stake, and it is never assumed
+(`422 integration_vat_incoherent` otherwise) — and it must be the place Facturino
+decides. Goods that stay in France follow French VAT rules. A general B2C
+service follows the supplier's establishment; the Saint-Martin cumulation case
+above still needs a declared exemption or the integrator's tax treatment.
+
+**Other unmodelled cases.** A buyer established in a territory excluded from the
+EU VAT territory, such as the Canary Islands, Ceuta or Melilla, carries
+`eu_special_territory_not_implemented`. Goods dispatched to another member state
+or XI for a non-taxable legal person that communicated a VAT number carry
+`non_taxable_legal_person_goods_regime_not_modelled`. Both are `unsupported`
+under `facturino`; under `integration` they are `final`, with a notice carrying
+the same code and `ForeignTaxReviewRequired: true`, and the integrator declares
+and assumes the tax.
 
 ## B2C sales to consumers in other member states
 
@@ -341,8 +508,11 @@ produces a wrong rate:
    local VAT registration in that member state?
 
 The one-stop shop answers the **last** of the four: it is a way of declaring and
-paying a tax, not a rule of place. Not registering never restores the seller's
-own national VAT — it leaves the decision without an amount.
+paying a tax, not a rule of place. Without it and without a local registration,
+the tax due at destination is still due: it is invoiced exactly as with the
+one-stop shop (same rate, same lines, same axes), and the notice
+`destination_mechanism_missing` says how to register in time. It never falls back
+on the seller's own national VAT.
 
 That does not make the questions watertight in fact. For a **French** seller,
 registering for the Union scheme is how the option of art. 59c(3) is exercised:
@@ -431,22 +601,31 @@ the year the next operation reads.
 Movements are paginated with a cursor (`limit`, `starting_after`): the ledger
 keeps them all, a page shows some.
 
+A missing threshold or location fact leaves `pending_verification`, without
+amounts, with the fact and remedy in `Issues`. Notices describe a retained result.
+
+| Notice code | When |
+| --- | --- |
+| `destination_mechanism_missing` | Destination taxation is due with neither the Union scheme nor a local registration valid for that state on that date. The tax is invoiced; the notice's `DetailCode` (`threshold_exceeded`, `destination_option` or `multi_member_state_establishment`) says which operation starts the registration period. Register with the one-stop shop by the 10th of the month that follows the first operation subject to the regime for it to apply from that operation (Implementing Regulation (EU) 282/2011 art. 57 quinquies), or register in the member state. |
+| `location_evidence_contradictory` | The consumer territory is established by two concordant items of different kinds, or every possible territory gives the same complete tax result. The notice explains the retained result; unresolved contradictory evidence remains pending. |
+
+What follows keeps the decision **non-final**, without an amount.
+
 | Issue code | When |
 | --- | --- |
-| `eu_threshold_state_missing` | No ledger is open for the year of the operation. Open it: nothing is assumed to be zero. |
+| `eu_threshold_state_missing` | No ledger is open for the operation year. Open it and declare the threshold figures. |
+| `destination_regional_scope_undetermined` | The address lacks the postal code needed to distinguish VAT territories. Supply it; both sources refuse to choose a territory without it. |
+| `location_evidence_insufficient`, `location_evidence_contradictory` | The consumer's territory cannot be established. Supply sufficient, concordant location evidence. |
+| `location_evidence_relief_undetermined` | One third-party item is supplied and the art. 24b relaxation cannot be established (`EuB2cDestination.EvidenceRelief.Status` is `undeterminable`). Open the year's ledger and declare the services figures, or supply a second item. |
 | `eu_threshold_external_coverage_incomplete` | Other channels exist and are not declared complete through the operation date. Record an adjustment — even a zero one, which simply states that nothing happened. |
 | `eu_threshold_backdated_operation` | The operation predates one already counted, and decisions were frozen on that running total. It is refused rather than silently recomputed. |
 | `eu_threshold_concurrent_decision_pending` | Other operations of the company are being decided at this very moment, and the cap falls between "all of them confirmed" and "all abandoned". Nothing is frozen on that: decide again once they conclude. |
 | `eu_threshold_review_required` | The ledger is under review — its running total is known to be wrong, and no verdict rests on it until the review is settled. |
-| `location_evidence_relief_undetermined` | One third-party item of evidence, and the art. 24b relaxation could not be established: open the year's ledger and declare the services figures, or supply a second item. |
-| `eu_threshold_reservation_lost` | The slice this decision held is gone. The decision is refused rather than frozen without it, and the ledger goes under review. |
 | `destination_threshold_operation_value_missing` | A line value cannot be sized, so no slice of the total can be taken for it. |
 | `destination_threshold_price_mode_ambiguous` | Tax-inclusive price: the VAT-exclusive value depends on the rate the threshold has to decide, and the bounds fall on both sides of the cap. |
 | `destination_option_period_invalid` | The option is declared over less than its minimum binding period. |
 | `destination_option_scope_not_sourced` | Seller established outside France: the binding period is fixed by the member state where the option is exercised, and only the French one is sourced here. |
 | `destination_establishment_in_member_state` | The seller declares an establishment in the destination member state: which establishment supplies then decides both the place and the mechanism, and no fact of the contract names it. A local VAT registration alone is not an establishment. |
-| `destination_regional_scope_undetermined` | The member state publishes regional standard rates and the address places none of them — state the customer's postal code. |
-| `destination_mechanism_missing` | Destination taxation is due with neither the Union scheme nor a local registration valid for that state on that date. |
 | `franchise_destination_taxation_not_modelled` | Seller under the French small-enterprise exemption whose operation is taxed by another member state. |
 
 Rates come from a **local, dated, versioned registry**: no network call during a
@@ -463,9 +642,9 @@ What governs the region decides the answer:
 
 - **the rate follows the place of the operation.** The region is then a territory
   of its own and the address decides: Portugal mainland 23%, Madeira 22%, Azores
-  16% (CIVA art. 18, CTT postal ranges). Only an address placing no region at all
-  is refused — `destination_regional_scope_undetermined`, naming the missing fact
-  rather than falling back on the mainland rate;
+  16% (CIVA art. 18, CTT postal ranges). An address lacking the postal code needed
+  to distinguish the territories stays non-final under both sources
+  (`destination_regional_scope_undetermined`); supply the postal code;
 - **the rate is reserved to operations carried out in the zone by a supplier
   established there.** A supplier at distance does not acquire it from the
   consumer's address, so the national rate is the final answer — and no postal
@@ -506,7 +685,7 @@ _, _ = client.EuThresholdLedgers.Adjust("2026", &facturino.EuThresholdAdjustment
 })
 
 ledger, _ := client.EuThresholdLedgers.Get("2026")
-_ = ledger.CumulativeMin // total already acquired, in centimes
+_ = ledger.AcquiredMin // total already acquired, in centimes
 _ = ledger.RemainingMin  // what is left before the cap
 ```
 
@@ -527,13 +706,20 @@ one you supply to the legal result:
   another member state, and only the bands it publishes for a French territory,
   so it can neither confirm a reduced rate nor correct yours. At origin that
   refusal asserts NO foreign tax: the operation is taxed in France;
-- a rule that could not conclude — blocked exactly as under `facturino`, with
-  the same meaning of `pending_verification` and `unsupported`.
+- a missing fact — `pending_verification`, without amounts, with the fact and
+  remedy in `Issues`, as under `facturino`;
+- an unmodelled local regime, excluded EU VAT territory, or the goods regime of
+  a non-taxable legal person carrying a VAT number — `final` under `integration`
+  with a notice and `ForeignTaxReviewRequired: true`; the integrator declares
+  and assumes the tax. Under `facturino` these cases are `unsupported`.
 
 The confrontation reaches BOTH places the rule can settle, and the territorial
-frontier is shared too: a seller established outside the French VAT territory, or
-a buyer sitting in a territory excluded from the EU VAT territory, raises under
-`integration` exactly the obstacle it raises under `facturino`.
+frontier is shared too: a seller established outside the French VAT territory
+raises under `integration` exactly the obstacle it raises under `facturino` (the
+decision is `unsupported`). A buyer sitting in a territory excluded from the EU
+VAT territory (the Canary Islands, Ceuta, Melilla, Åland…) is `unsupported` under
+`facturino`; `integration` keeps a `final` decision with the notice
+`eu_special_territory_not_implemented` and `ForeignTaxReviewRequired: true`.
 
 Because of this, `goodsMovement` is **required** on a goods line as soon as the
 buyer is a consumer of another member state: that movement decides whether the
@@ -637,12 +823,25 @@ if lookup.Found {
 
 ### Products
 
+Optional `Kind` (`"goods"` or `"service"`) and open-string `SupplyCategory`
+are stored and returned on creation, update and read. The documented fiscal
+categories are `"goods"`, `"services"`, `"electronically_supplied_services"`,
+`"deposit"` and `"ancillary_costs"`; accept future values too. `Kind` classifies
+the document, while `SupplyCategory` declares the fiscal nature. An empty
+`SupplyCategory` stays undeclared. Deposits and ancillary costs follow the
+principal operation identified by the line that uses the product.
+
+Create and update parameters also expose `Tags` and `VATexCode`; updates keep
+supporting `Reference`, `Category` and `Active` (`*bool`, so `false` is sent).
+
 ```go
 prod, _ := client.Products.Create(&facturino.ProductParams{
-    Name:      "Consulting",
-    UnitPrice: 10000,
-    VATRate:   2000,
-    Unit:      "heure",
+    Name:           "Consulting",
+    UnitPrice:      10000,
+    VATRate:        2000,
+    Unit:           "hour",
+    Kind:           "service",
+    SupplyCategory: "services",
 })
 
 // Filter the catalog by name prefix, category and/or active flag.
@@ -656,10 +855,26 @@ iter := client.Products.List(&facturino.ProductListParams{
 
 ### Quotes
 
+Quote input lines (`ItemParams`) accept optional `Kind` and open-string
+`SupplyCategory`. Read them back on `LineItem`; converting a quote copies the
+declared `SupplyCategory` unchanged to the draft invoice, including its
+`CommercialDraft.Lines`. An omitted category stays undeclared (only
+`Kind: "goods"` supplies `"goods"`); an undeclared service follows the two
+readings described above. A quote declares the fiscal nature and decides no VAT.
+
 ```go
 q, _ := client.Quotes.Create(&facturino.QuoteParams{
     Customer: "cus_xxx",
-    Items:    []*facturino.ItemParams{{...}},
+    Items: []*facturino.ItemParams{{
+        Description:    "Consulting",
+        Quantity:       "1",
+        Unit:           "hour",
+        UnitPrice:      10000,
+        VATRate:        2000,
+        VATCode:        "S",
+        Kind:           "service",
+        SupplyCategory: "services",
+    }},
 })
 q, _ = client.Quotes.Send(q.ID)
 q, _ = client.Quotes.Accept(q.ID)

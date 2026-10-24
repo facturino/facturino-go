@@ -29,6 +29,12 @@ import (
 // Sales made elsewhere are never assumed absent: under "mixed_channels" they
 // enter through adjustments, and the ledger serves a decision only up to the day
 // those channels are declared complete through.
+// An undeclared EUR 10,000 threshold leaves eu_threshold_state_missing pending,
+// without amounts. If destination VAT is due but no declarative mechanism is
+// declared, it is invoiced and destination_mechanism_missing gives registration
+// guidance in Notices. Undetermined location-evidence relief leaves
+// location_evidence_relief_undetermined pending: declare the services figures or
+// supply a second item of evidence.
 type EuThresholdLedger struct {
 	Object    string `json:"object"`
 	ID        string `json:"id"`
@@ -129,9 +135,15 @@ type EuThresholdLedgerEntry struct {
 	// Kind is "opening", "external_adjustment", "external_correction",
 	// "reservation_consumed", "reservation_released", "review_opened" or
 	// "review_resolved".
+	//
+	// "reservation_released" gives a reserved slice back: zero amounts when it
+	// was never consumed, negative amounts when a sale counted for a draft is
+	// taken back out before any issuance (the decision that replaces it counts
+	// it once).
 	Kind string `json:"kind"`
 	// AmountMin/Max are the SIGNED effect on the running total: negative for a
-	// qualified correction, zero for a released slice or a review movement.
+	// qualified correction or a sale taken back out, zero for a slice released
+	// unconsumed or a review movement.
 	AmountMin             int     `json:"amountMin"`
 	AmountMax             int     `json:"amountMax"`
 	EvidenceAmountMin     int     `json:"evidenceAmountMin"`

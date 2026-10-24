@@ -17,10 +17,20 @@ type Product struct {
 	Description string `json:"description,omitempty"`
 	Reference   string `json:"reference,omitempty"`
 	Category    string `json:"category,omitempty"`
+	// Kind is "goods" or "service"; when absent, the line's unit determines it.
+	Kind string `json:"kind,omitempty"`
+	// SupplyCategory is the declared fiscal nature, an open string: "goods",
+	// "services", "electronically_supplied_services", "deposit" or
+	// "ancillary_costs". Empty means undeclared. Deposits and ancillary costs
+	// follow the principal operation named by the line that uses the product.
+	SupplyCategory string `json:"supplyCategory,omitempty"`
 
 	UnitPrice int    `json:"unitPrice"` // integer centimes
 	VATRate   int    `json:"vatRate"`   // centièmes de pourcent
 	VATCode   string `json:"vatCode"`
+	// VATexCode is an open string from the official CIUS-FR list (88 codes),
+	// e.g. "VATEX-FR-CGI261-4" or "VATEX-FR-AE".
+	VATexCode string `json:"vatexCode,omitempty"`
 	Unit      string `json:"unit"`
 
 	Tags []string `json:"tags"`
@@ -42,15 +52,23 @@ type PriceHistoryEntry struct {
 
 // ProductParams are the parameters for creating a product. UnitPrice in centimes, VATRate in centipercent.
 type ProductParams struct {
-	Name        string   `json:"name"`
-	Description string   `json:"description,omitempty"`
-	Reference   string   `json:"reference,omitempty"`
-	Category    string   `json:"category,omitempty"`
-	UnitPrice   int      `json:"unitPrice"`
-	VATRate     int      `json:"vatRate"`
-	VATCode     string   `json:"vatCode,omitempty"`
-	Unit        string   `json:"unit,omitempty"`
-	Tags        []string `json:"tags,omitempty"`
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+	Reference   string `json:"reference,omitempty"`
+	Category    string `json:"category,omitempty"`
+	// Kind is "goods" or "service"; omitted when empty.
+	Kind string `json:"kind,omitempty"`
+	// SupplyCategory follows Product.SupplyCategory; omitted when empty.
+	SupplyCategory string `json:"supplyCategory,omitempty"`
+	UnitPrice      int    `json:"unitPrice"`
+	VATRate        int    `json:"vatRate"`
+	VATCode        string `json:"vatCode,omitempty"`
+	// VATexCode accepts official CIUS-FR codes as an open string. Legacy
+	// "VATEX-FR-261" and "VATEX-FR-AUTOLIQ" are accepted; new writes store and
+	// return "VATEX-FR-CGI261-4" and "VATEX-FR-AE", respectively.
+	VATexCode string   `json:"vatexCode,omitempty"`
+	Unit      string   `json:"unit,omitempty"`
+	Tags      []string `json:"tags,omitempty"`
 
 	IdempotencyKey string `json:"-"`
 }
@@ -61,12 +79,18 @@ type ProductUpdateParams struct {
 	Description string `json:"description,omitempty"`
 	Reference   string `json:"reference,omitempty"`
 	Category    string `json:"category,omitempty"`
+	// Kind is "goods" or "service"; omitted when empty.
+	Kind string `json:"kind,omitempty"`
+	// SupplyCategory follows Product.SupplyCategory; omitted when empty.
+	SupplyCategory string `json:"supplyCategory,omitempty"`
 	// UnitPrice and VATRate are pointers so that 0 (a free product or a 0%
 	// VAT rate) is sent instead of being dropped by omitempty. Leave nil to
 	// keep the current value.
-	UnitPrice *int     `json:"unitPrice,omitempty"`
-	VATRate   *int     `json:"vatRate,omitempty"`
-	VATCode   string   `json:"vatCode,omitempty"`
+	UnitPrice *int   `json:"unitPrice,omitempty"`
+	VATRate   *int   `json:"vatRate,omitempty"`
+	VATCode   string `json:"vatCode,omitempty"`
+	// VATexCode follows ProductParams.VATexCode; omitted when empty.
+	VATexCode string   `json:"vatexCode,omitempty"`
 	Unit      string   `json:"unit,omitempty"`
 	Tags      []string `json:"tags,omitempty"`
 	Active    *bool    `json:"active,omitempty"`

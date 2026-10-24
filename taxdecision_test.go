@@ -724,6 +724,60 @@ func TestGoodsMovementReachesAnIntegrationLine(t *testing.T) {
 	}
 }
 
+func TestPlaceOfSupplyRuleReachesAnIntegrationLine(t *testing.T) {
+	// The rule is optional ("general" when absent) and is the one under which the
+	// declared place is checked against the place Facturino decides.
+	var body map[string]interface{}
+	client, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) {
+		raw, _ := io.ReadAll(r.Body)
+		_ = json.Unmarshal(raw, &body)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(201)
+		fmt.Fprint(w, `{"id":"taxdec_int3","object":"tax_decision","status":"final","taxSource":"integration"}`)
+	})
+
+	rate := 2000
+	if _, err := client.TaxDecisions.Create(&TaxDecisionParams{
+		TaxSource: "integration", Customer: "cus_8f2k4m9n", EffectiveAt: "2026-09-15",
+		Currency: "eur", PriceMode: "tax_exclusive",
+		Lines: []*TaxDecisionLineParams{
+			{
+				Reference:         "line-1",
+				Description:       "Prestation",
+				Category:          "services",
+				PlaceOfSupplyRule: "general",
+				PlaceOfSupply:     "FR-MET",
+				UnitAmount:        2900,
+				Quantity:          "1",
+				VatRate:           &rate,
+				VatCode:           "S",
+			},
+			{
+				Reference:   "line-2",
+				Description: "Prestation",
+				Category:    "services",
+				UnitAmount:  2900,
+				Quantity:    "1",
+				VatRate:     &rate,
+				VatCode:     "S",
+			},
+		},
+		IdempotencyKey: "order-rule-1",
+	}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	lines := body["lines"].([]interface{})
+	first := lines[0].(map[string]interface{})
+	if first["placeOfSupplyRule"] != "general" || first["placeOfSupply"] != "FR-MET" {
+		t.Errorf("line 1 = %v, want placeOfSupplyRule general and placeOfSupply FR-MET", first)
+	}
+	// Absent stays absent: the API reads it as "general".
+	if _, sent := lines[1].(map[string]interface{})["placeOfSupplyRule"]; sent {
+		t.Error("placeOfSupplyRule sent although it was left empty")
+	}
+}
+
 func TestInvoiceReadsThreeAxes(t *testing.T) {
 	client, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -850,7 +904,7 @@ func TestFiscalSurfaceParity(t *testing.T) {
 		"TransactionReporting", "PaymentReporting", "SettledObligations",
 		"EuB2cDestination", "ForeignTaxReviewRequired",
 		"RetryOfTaxDecisionID", "Expired", "RulesVersion", "OperationFingerprint",
-		"ObligationReasons", "Vies", "Issues", "LocationEvidence",
+		"ObligationReasons", "Vies", "LegalCategory", "Issues", "LocationEvidence",
 	} {
 		if _, found := decision.FieldByName(field); !found {
 			t.Errorf("TaxDecision.%s is missing", field)
@@ -976,5 +1030,57 @@ func TestLocationEvidenceResolvedAtCountryLevel(t *testing.T) {
 	}
 	if item.DeclaredCountry != "FR" || item.Kind != "ip_geolocation" {
 		t.Errorf("country-level item lost its country or kind: %+v", item)
+	}
+}
+
+func TestTaxDecisionCreateWithLocalTaxExemption(t *testing.T) {
+	for _, source := range []string{"facturino", "integration"} {
+		for _, exemption := range []string{"", "cgism_253", "not_used_in_saint_martin", "future_exemption"} {
+			name := exemption
+			if name == "" {
+				name = "omitted"
+			}
+			t.Run(source+"/"+name, func(t *testing.T) {
+				var body struct {
+					Lines []map[string]interface{} `json:"lines"`
+				}
+				client, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) {
+					if r.Method != http.MethodPost || r.URL.Path != "/v1/tax-decisions" {
+						t.Errorf("request = %s %s, want POST /v1/tax-decisions", r.Method, r.URL.Path)
+					}
+					if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+						t.Errorf("decode request: %v", err)
+						w.WriteHeader(http.StatusBadRequest)
+						return
+					}
+					w.Header().Set("Content-Type", "application/json")
+					fmt.Fprint(w, finalDecisionJSON)
+				})
+				params := decisionParams()
+				params.TaxSource = source
+				params.Lines[0].LocalTaxExemption = exemption
+				if source == "integration" {
+					zero := 0
+					params.Lines[0].RateCategory = ""
+					params.Lines[0].VatRate = &zero
+					params.Lines[0].VatCode = "O"
+					params.Lines[0].VatexCode = "VATEX-EU-O"
+					params.Lines[0].PlaceOfSupply = "MF"
+				}
+				if _, err := client.TaxDecisions.Create(params); err != nil {
+					t.Fatal(err)
+				}
+				if len(body.Lines) != 1 {
+					t.Fatalf("Lines = %+v, want one line", body.Lines)
+				}
+				if got, present := body.Lines[0]["localTaxExemption"]; exemption == "" {
+					if present {
+						t.Errorf("localTaxExemption = %#v, want omitted", got)
+					}
+				} else if !present || got != exemption {
+					t.Errorf("localTaxExemption = %#v, want %q", got, exemption)
+				}
+			})
+		}
 	}
 }

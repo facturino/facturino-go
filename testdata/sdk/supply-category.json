@@ -1,0 +1,155 @@
+{
+  "product": {
+    "id": "prod_supply",
+    "object": "product",
+    "name": "Online subscription",
+    "reference": "SUB-ONLINE",
+    "category": "subscriptions",
+    "kind": "service",
+    "supplyCategory": "electronically_supplied_services",
+    "unitPrice": 2900,
+    "vatRate": 2000,
+    "vatCode": "S",
+    "unit": "month",
+    "tags": ["online"],
+    "active": true
+  },
+  "quote": {
+    "id": "quo_supply",
+    "object": "quote",
+    "status": "draft",
+    "items": [
+      {
+        "id": "li_supply",
+        "description": "Online subscription",
+        "quantity": "1",
+        "unit": "month",
+        "unitPrice": 2900,
+        "vatRate": 2000,
+        "vatCode": "S",
+        "kind": "service",
+        "supplyCategory": "electronically_supplied_services"
+      }
+    ]
+  },
+  "convertedInvoice": {
+    "id": "inv_supply",
+    "object": "invoice",
+    "status": "draft",
+    "taxSource": null,
+    "items": [
+      {
+        "id": "li_supply",
+        "description": "Online subscription",
+        "quantity": "1",
+        "unit": "month",
+        "unitPrice": 2900,
+        "kind": "service",
+        "supplyCategory": "electronically_supplied_services"
+      }
+    ],
+    "commercialDraft": {
+      "priceMode": "tax_exclusive",
+      "totalCents": 2900,
+      "lines": [
+        {
+          "reference": "line-supply",
+          "description": "Online subscription",
+          "quantity": "1",
+          "unit": "month",
+          "unitPrice": 2900,
+          "supplyCategory": "electronically_supplied_services"
+        }
+      ]
+    }
+  },
+  "pendingDecision": {
+    "id": "taxdec_supply_pending",
+    "object": "tax_decision",
+    "status": "pending_verification",
+    "lines": [
+      {
+        "reference": "line-supply",
+        "description": "Undeclared service",
+        "category": null,
+        "quantity": "1",
+        "unitAmount": 10000,
+        "rateCentipercent": null,
+        "amountHT": null,
+        "amountVAT": null,
+        "amountTTC": null
+      }
+    ],
+    "totals": null,
+    "amountToCharge": null,
+    "issues": [
+      {
+        "code": "supply_category_not_declared",
+        "lineId": "line-supply",
+        "message": "Declare whether the line is an ordinary or electronically supplied service."
+      }
+    ],
+    "notices": []
+  },
+  "finalDecision": {
+    "id": "taxdec_supply_final",
+    "object": "tax_decision",
+    "status": "final",
+    "lines": [
+      {
+        "reference": "line-supply",
+        "description": "Undeclared service with the same complete tax result",
+        "category": "services",
+        "quantity": "1",
+        "unitAmount": 10000,
+        "rateCentipercent": 2000,
+        "amountHT": 10000,
+        "amountVAT": 2000,
+        "amountTTC": 12000
+      }
+    ],
+    "totals": {"totalHT": 10000, "totalVAT": 2000, "totalTTC": 12000},
+    "amountToCharge": 12000,
+    "issues": [],
+    "notices": [
+      {
+        "code": "supply_category_not_declared",
+        "lineId": "line-supply",
+        "message": "Both service readings give the same complete tax result; services was retained."
+      }
+    ]
+  },
+  "historicalProduct": {
+    "id": "prod_historical",
+    "object": "product",
+    "name": "Historical service",
+    "unitPrice": 10000,
+    "vatRate": 2000,
+    "vatCode": "S",
+    "unit": "hour"
+  },
+  "historicalQuote": {
+    "id": "quo_historical",
+    "object": "quote",
+    "items": [{"description": "Historical service", "quantity": "1", "unitPrice": 10000}]
+  },
+  "historicalInvoice": {
+    "id": "inv_historical",
+    "object": "invoice",
+    "taxSource": null,
+    "items": [{"description": "Historical service", "quantity": "1", "unitPrice": 10000}],
+    "commercialDraft": {
+      "priceMode": "tax_exclusive",
+      "totalCents": 10000,
+      "lines": [{"reference": "line-historical", "description": "Historical service", "quantity": "1", "unitPrice": 10000}]
+    }
+  },
+  "historicalDecision": {
+    "id": "taxdec_historical",
+    "object": "tax_decision",
+    "status": "final",
+    "lines": [{"reference": "line-historical", "category": "services", "amountHT": 10000, "amountVAT": 2000, "amountTTC": 12000}],
+    "totals": {"totalHT": 10000, "totalVAT": 2000, "totalTTC": 12000},
+    "amountToCharge": 12000
+  }
+}

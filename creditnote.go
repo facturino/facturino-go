@@ -38,7 +38,11 @@ type CreditNote struct {
 	// OriginalTaxDecisionID names the decision the credited invoice was backed
 	// by; the credit note inherits it rather than deciding again.
 	OriginalTaxDecisionID string `json:"originalTaxDecisionId,omitempty"`
-	// TaxSnapshot is the frozen fiscal position inherited from the invoice.
+	// TaxSnapshot is the frozen fiscal position inherited from the invoice. Its
+	// "notices" key repeats the notices of the invoice it credits, in the shape
+	// of TaxDecisionNotice: what the decision retained and what the seller can
+	// do next. It is empty when there is nothing to report; historical snapshots
+	// may omit the key. Notices never stand for a missing fact.
 	TaxSnapshot    map[string]interface{} `json:"taxSnapshot,omitempty"`
 	CreditNoteType string                 `json:"creditNoteType"`
 	Number         *string                `json:"number"`

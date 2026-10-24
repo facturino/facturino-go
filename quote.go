@@ -199,7 +199,8 @@ func (s *QuoteService) Clone(id string) (*Quote, error) {
 	return &q, nil
 }
 
-// Convert creates a draft invoice from an accepted quote.
+// Convert creates a draft invoice from an accepted quote, copying each line's
+// declared SupplyCategory unchanged. Missing service categories stay undeclared.
 func (s *QuoteService) Convert(id string) (*Invoice, error) {
 	var inv Invoice
 	err := s.client.post(fmt.Sprintf("/quotes/%s/convert", id), nil, &inv, nil)

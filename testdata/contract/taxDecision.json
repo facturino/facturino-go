@@ -17,6 +17,7 @@
     "declaredPostalCode": "75002",
     "legalRegistrationId": "12345678900011",
     "vatNumber": null,
+    "retainedVatNumber": null,
     "crossBorderTaxableStatus": "evidenced",
     "businessStatusBasis": "french_legal_registration"
   },
@@ -35,6 +36,7 @@
   "operationFingerprint": "sha256:405afd527a1e0763eef4c1c5a95eff19fafb135e259926f379659e27cbf47e4a",
   "foreignTaxReviewRequired": false,
   "issues": [],
+  "notices": [],
   "obligationReasons": [
     {
       "axis": "invoiceChannel",
