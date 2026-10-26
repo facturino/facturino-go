@@ -43,6 +43,10 @@ type CreditNote struct {
 	// of TaxDecisionNotice: what the decision retained and what the seller can
 	// do next. It is empty when there is nothing to report; historical snapshots
 	// may omit the key. Notices never stand for a missing fact.
+	// Its read-only "obligationBasis" key repeats the invoice's frozen basis:
+	// "legal", "voluntary_early_adoption" or null. Null means no obligation
+	// applies or historical information is unresolved; older snapshots may
+	// omit the key.
 	TaxSnapshot    map[string]interface{} `json:"taxSnapshot,omitempty"`
 	CreditNoteType string                 `json:"creditNoteType"`
 	Number         *string                `json:"number"`

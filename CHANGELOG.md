@@ -6,6 +6,14 @@ adheres to [Semantic Versioning](https://semver.org/) and
 
 ## [Unreleased]
 
+## [2.12.0] - 2026-10-26
+
+### Added
+- Read-only `EReporting.SkippedReason` (`*string`), nullable and optional on historical responses: `State: skipped` with `nothing_to_declare` closes locally without transmission and with a `completed` obligation when operations outside French VAT scope require no payment data.
+- Read-only `EReporting.ObligationBasis`, `ObligationDueFrom` and `AcknowledgedBy` (`*string`): the frozen transmission basis (`legal` or `voluntary_early_adoption`), the seller's legal wave opening date (`YYYY-MM-DD`), and who acknowledged receipt (`administration` or `platform`), independently of acceptance. JSON `null` and historical omissions decode to `nil`.
+- Read-only `TaxDecision.ObligationBasis` (`*string`) and the `taxSnapshot.obligationBasis` key on invoices and credit notes: the transmission basis frozen with the decision, nullable and optional on historical responses. `TaxSnapshot` stays an untyped map.
+- Updated contract fixtures and response tests for populated fields, explicit null and historical omissions. The API contract date remains 2026-09-01.
+
 ## [2.11.0] - 2026-10-24
 
 ### Added

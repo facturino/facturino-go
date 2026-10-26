@@ -50,6 +50,10 @@ type Invoice struct {
 	// TaxDecisionNotice: what the decision retained and what the seller can do
 	// next. It is empty when there is nothing to report; historical snapshots
 	// may omit the key. Notices never stand for a missing fact.
+	// Its read-only "obligationBasis" key is "legal",
+	// "voluntary_early_adoption" or null, frozen with the decision. Null means
+	// no obligation applies or historical information is unresolved; older
+	// snapshots may omit the key.
 	TaxSnapshot map[string]interface{} `json:"taxSnapshot,omitempty"`
 	// CommercialDraft is the operation an UNDECIDED draft states — typically
 	// one produced by Quotes.Convert. Present only while TaxSource is empty; it

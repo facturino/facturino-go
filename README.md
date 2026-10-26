@@ -8,7 +8,7 @@ Go client library for the [Facturino](https://facturino.com) API — developer-f
 ## Installation
 
 ```bash
-go get github.com/facturino/facturino-go/v2@v2.7.0
+go get github.com/facturino/facturino-go/v2@v2.12.0
 ```
 
 Requires Go 1.21+. No external dependencies.
@@ -203,6 +203,7 @@ Stripe carries it in `metadata` (`facturino_tax_decision_id`), PayPal in
 | `InvoiceChannel` | `einvoicing` or `none` — whether the invoice travels the network. |
 | `TransactionReporting` | `ereporting`, `none` or `outside_scope`. |
 | `PaymentReporting` | `fr212`, `ereporting` or `none`. |
+| `ObligationBasis` | Read-only `*string`: `legal` or `voluntary_early_adoption`, frozen with the decision. `nil` when no obligation applies or historical information is unresolved, including an omitted field. |
 | `SettledObligations` | The axes French law settles DESPITE a non-final decision. `nil` when final — the three axes above are then the settled ones. Each axis inside is `nil` when it depends on the treatment that could not be concluded. It authorises nothing. |
 | `ForeignTaxReviewRequired` | A foreign tax may apply; review it outside Facturino. |
 | `Vies` | VIES status only (`valid`, `invalid`, `unavailable`, `invalid_format`). |
@@ -308,6 +309,14 @@ if decision.IsFinal() {
 The list of codes can grow: treat an unknown code as a generic notice. Invoices
 and credit notes freeze the notices of their decision under the `notices` key of
 their `TaxSnapshot`; a credit note repeats those of the invoice it credits.
+
+The same read-only `TaxSnapshot` map carries `obligationBasis`: `"legal"`,
+`"voluntary_early_adoption"` or `nil` (JSON `null`), frozen with the decision.
+`nil` means no obligation applies or historical information is unresolved.
+Historical snapshots can omit the key; use
+`basis, present := invoice.TaxSnapshot["obligationBasis"]` to distinguish
+omission from `null`.
+A credit note inherits the invoice's frozen basis.
 
 ### Missing evidence, then a retry
 
@@ -939,6 +948,19 @@ job, _ := client.Jobs.Get(fec.ID)
 ```
 
 ### E-Reporting
+
+Declarations expose these read-only fields as `*string`; JSON `null` and
+historical omissions both decode to `nil`:
+
+| Field | Meaning |
+|---|---|
+| `SkippedReason` | With `State: skipped`, `nothing_to_declare` means local closure without transmission and with `Obligation.State: completed`: operations outside French VAT scope require no payment data. `Status: skipped` alone does not establish this closure. |
+| `ObligationBasis` | `legal` for a legal obligation, or `voluntary_early_adoption` for the seller's voluntary early transmission. `nil` when no obligation applies or historical information is unresolved. |
+| `ObligationDueFrom` | Legal opening date of the seller's wave (`YYYY-MM-DD`), frozen at reservation. A batch spanning several waves keeps the earliest date. `nil` when unresolved. |
+| `AcknowledgedBy` | `administration` (PPF) or `platform`: who acknowledged receipt, independently of acceptance. `nil` without an acknowledgement or on historical declarations. |
+
+These response fields are not creation parameters. The API contract date
+remains `2026-09-01`.
 
 ```go
 decl, _ := client.EReporting.CreateDeclaration(&facturino.EReportingParams{

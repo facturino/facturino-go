@@ -17,11 +17,32 @@ type EReporting struct {
 	// rejected, skipped) — never an authority of its own.
 	Status string `json:"status"`
 	// State is the actual state: reserved, submitting, queued, submitted,
-	// acknowledged, accepted, rejected, blocked, reconciliation_required.
+	// acknowledged, accepted, rejected, blocked, skipped, reconciliation_required.
 	// "reserved" means NOTHING has been transmitted yet.
+	// "skipped" closes locally without transmission; see SkippedReason.
 	State string `json:"state,omitempty"`
 	Type  string `json:"type"`
 	Volet string `json:"volet,omitempty"` // transaction | payment
+
+	// SkippedReason is the read-only reason for not transmitting. With State
+	// "skipped", "nothing_to_declare" means local closure with a completed
+	// obligation: operations outside French VAT scope require no payment data.
+	// Nil when null or absent historically. Status "skipped" alone does not
+	// establish this closure.
+	SkippedReason *string `json:"skippedReason,omitempty"`
+
+	// ObligationBasis is the read-only transmission basis: "legal" or
+	// "voluntary_early_adoption". Nil when no obligation applies or historical
+	// information is unresolved, including responses that omit the field.
+	ObligationBasis *string `json:"obligationBasis,omitempty"`
+	// ObligationDueFrom is the read-only legal opening date of the seller's
+	// wave (YYYY-MM-DD), frozen at reservation. A batch spanning several waves
+	// keeps the earliest date. Nil when unresolved or absent historically.
+	ObligationDueFrom *string `json:"obligationDueFrom,omitempty"`
+	// AcknowledgedBy identifies who acknowledged receipt: "administration"
+	// (PPF) or "platform", independently of acceptance. Read-only; nil without
+	// an acknowledgement or on historical responses.
+	AcknowledgedBy *string `json:"acknowledgedBy,omitempty"`
 
 	Period      string `json:"period"`
 	PeriodStart string `json:"periodStart,omitempty"`

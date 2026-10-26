@@ -118,6 +118,244 @@ func serveJSON(t *testing.T, body interface{}) *Client {
 	return corpusClient(raw)
 }
 
+func TestEReportingObligationResponses(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		fields  map[string]interface{}
+		basis   string
+		dueFrom string
+		ack     string
+	}{
+		{
+			name: "legal",
+			fields: map[string]interface{}{
+				"obligationBasis": "legal", "obligationDueFrom": "2026-09-01", "acknowledgedBy": "administration",
+			},
+			basis: "legal", dueFrom: "2026-09-01", ack: "administration",
+		},
+		{
+			name: "voluntary",
+			fields: map[string]interface{}{
+				"obligationBasis": "voluntary_early_adoption", "obligationDueFrom": "2027-09-01", "acknowledgedBy": "platform",
+			},
+			basis: "voluntary_early_adoption", dueFrom: "2027-09-01", ack: "platform",
+		},
+		{
+			name: "null",
+			fields: map[string]interface{}{
+				"obligationBasis": nil, "obligationDueFrom": nil, "acknowledgedBy": nil,
+			},
+		},
+		{name: "historical"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			body := map[string]interface{}{"id": "erep_fixture", "object": "ereporting", "state": "acknowledged"}
+			for key, value := range tc.fields {
+				body[key] = value
+			}
+			check := func(declaration *EReporting) {
+				t.Helper()
+				if declaration.ID != "erep_fixture" || declaration.State != "acknowledged" {
+					t.Fatalf("declaration identity or state lost: %+v", declaration)
+				}
+				for _, field := range []struct {
+					name string
+					got  *string
+					want string
+				}{
+					{"ObligationBasis", declaration.ObligationBasis, tc.basis},
+					{"ObligationDueFrom", declaration.ObligationDueFrom, tc.dueFrom},
+					{"AcknowledgedBy", declaration.AcknowledgedBy, tc.ack},
+				} {
+					if field.want == "" {
+						if field.got != nil {
+							t.Errorf("%s = %q, want nil", field.name, *field.got)
+						}
+					} else if field.got == nil || *field.got != field.want {
+						t.Errorf("%s = %v, want %q", field.name, field.got, field.want)
+					}
+				}
+			}
+
+			declaration, err := serveJSON(t, body).EReporting.Get("erep_fixture")
+			if err != nil {
+				t.Fatal(err)
+			}
+			check(declaration)
+
+			iter := serveJSON(t, map[string]interface{}{
+				"data": []interface{}{body}, "has_more": false,
+			}).EReporting.List(nil)
+			if !iter.Next() {
+				t.Fatalf("declaration missing from list: %v", iter.Err())
+			}
+			check(iter.EReporting())
+			if iter.Next() || iter.Err() != nil {
+				t.Fatalf("unexpected extra declaration or pagination error: %v", iter.Err())
+			}
+		})
+	}
+}
+
+func TestEReportingSkippedResponses(t *testing.T) {
+	for _, tc := range []struct {
+		name            string
+		state           string
+		status          string
+		fields          map[string]interface{}
+		reason          string
+		obligationState string
+	}{
+		{
+			name: "nothing_to_declare", state: "skipped", status: "skipped",
+			fields: map[string]interface{}{"skippedReason": "nothing_to_declare"},
+			reason: "nothing_to_declare", obligationState: "completed",
+		},
+		{
+			name: "null", state: "reserved", status: "draft",
+			fields:          map[string]interface{}{"skippedReason": nil},
+			obligationState: "pending",
+		},
+		{name: "historical", state: "reserved", status: "draft"},
+		{name: "historical_skipped_status", status: "skipped"},
+		{
+			name: "blocked", state: "blocked", status: "skipped",
+			obligationState: "attention_required",
+		},
+		{
+			name: "future_reason", state: "skipped", status: "skipped",
+			fields: map[string]interface{}{"skippedReason": "future_reason"},
+			reason: "future_reason", obligationState: "completed",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			body := map[string]interface{}{
+				"id": "erep_fixture", "object": "ereporting", "status": tc.status, "volet": "payment",
+			}
+			if tc.state != "" {
+				body["state"] = tc.state
+			}
+			for key, value := range tc.fields {
+				body[key] = value
+			}
+			if tc.obligationState != "" {
+				body["obligation"] = map[string]interface{}{
+					"state": tc.obligationState, "reasonCode": nil, "reasonSource": nil,
+					"owner": nil, "action": nil, "nextAttemptAt": nil,
+				}
+			}
+			check := func(declaration *EReporting) {
+				t.Helper()
+				if declaration.ID != "erep_fixture" || declaration.State != tc.state || declaration.Status != tc.status {
+					t.Fatalf("declaration identity or state lost: %+v", declaration)
+				}
+				if tc.reason == "" {
+					if declaration.SkippedReason != nil {
+						t.Errorf("SkippedReason = %q, want nil", *declaration.SkippedReason)
+					}
+				} else if declaration.SkippedReason == nil || *declaration.SkippedReason != tc.reason {
+					t.Errorf("SkippedReason = %v, want %q", declaration.SkippedReason, tc.reason)
+				}
+				if tc.obligationState == "" {
+					if declaration.Obligation != nil {
+						t.Errorf("Obligation = %+v, want nil", declaration.Obligation)
+					}
+				} else if declaration.Obligation == nil || declaration.Obligation.State != tc.obligationState {
+					t.Errorf("Obligation = %+v, want state %q", declaration.Obligation, tc.obligationState)
+				}
+				if declaration.SubmittedAt != "" || declaration.PAResponseID != "" {
+					t.Errorf("unexpected transmission data: %+v", declaration)
+				}
+			}
+
+			declaration, err := serveJSON(t, body).EReporting.Get("erep_fixture")
+			if err != nil {
+				t.Fatal(err)
+			}
+			check(declaration)
+
+			iter := serveJSON(t, map[string]interface{}{
+				"data": []interface{}{body}, "has_more": false,
+			}).EReporting.List(nil)
+			if !iter.Next() {
+				t.Fatalf("declaration missing from list: %v", iter.Err())
+			}
+			check(iter.EReporting())
+			if iter.Next() || iter.Err() != nil {
+				t.Fatalf("unexpected extra declaration or pagination error: %v", iter.Err())
+			}
+		})
+	}
+}
+
+func TestDecisionAndSnapshotObligationBasisResponses(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		basis   interface{}
+		present bool
+	}{
+		{"legal", "legal", true},
+		{"voluntary", "voluntary_early_adoption", true},
+		{"null", nil, true},
+		{"historical", nil, false},
+	} {
+		for _, name := range []string{"taxDecision", "invoice", "creditNote"} {
+			t.Run(name+"/"+tc.name, func(t *testing.T) {
+				body := corpusBody(t, name)
+				fields := body
+				if name != "taxDecision" {
+					fields = body["taxSnapshot"].(map[string]interface{})
+				}
+				if tc.present {
+					fields["obligationBasis"] = tc.basis
+				} else {
+					delete(fields, "obligationBasis")
+				}
+
+				client := serveJSON(t, body)
+				var got interface{}
+				var present bool
+				switch name {
+				case "taxDecision":
+					decision, err := client.TaxDecisions.Get("taxdec_fixture")
+					if err != nil {
+						t.Fatal(err)
+					}
+					if decision.ObligationBasis != nil {
+						got = *decision.ObligationBasis
+					}
+					raw, exists := decision.Field("obligationBasis")
+					present = exists
+					if tc.present {
+						want, err := json.Marshal(tc.basis)
+						if err != nil {
+							t.Fatal(err)
+						}
+						if !bytes.Equal(raw, want) {
+							t.Errorf("raw obligationBasis = %s, want %s", raw, want)
+						}
+					}
+				case "invoice":
+					invoice, err := client.Invoices.Get("inv_fixture")
+					if err != nil {
+						t.Fatal(err)
+					}
+					got, present = invoice.TaxSnapshot["obligationBasis"]
+				case "creditNote":
+					creditNote, err := client.CreditNotes.Get("cn_fixture")
+					if err != nil {
+						t.Fatal(err)
+					}
+					got, present = creditNote.TaxSnapshot["obligationBasis"]
+				}
+				if got != tc.basis || present != tc.present {
+					t.Errorf("obligationBasis = %#v (present %v), want %#v (present %v)", got, present, tc.basis, tc.present)
+				}
+			})
+		}
+	}
+}
+
 func TestCorpusCarriesNoticesAndRetainedVatNumber(t *testing.T) {
 	decision, err := serveJSON(t, corpusBody(t, "taxDecision")).TaxDecisions.Get("taxdec_c6_fixture")
 	if err != nil {
@@ -133,6 +371,9 @@ func TestCorpusCarriesNoticesAndRetainedVatNumber(t *testing.T) {
 	if decision.Customer.RetainedVatNumber != nil {
 		t.Errorf("RetainedVatNumber = %q, want nil", *decision.Customer.RetainedVatNumber)
 	}
+	if decision.ObligationBasis == nil || *decision.ObligationBasis != "legal" {
+		t.Errorf("ObligationBasis = %v, want legal", decision.ObligationBasis)
+	}
 
 	invoice, err := serveJSON(t, corpusBody(t, "invoice")).Invoices.Get("inv_c6_fixture")
 	if err != nil {
@@ -140,6 +381,10 @@ func TestCorpusCarriesNoticesAndRetainedVatNumber(t *testing.T) {
 	}
 	if notices, ok := invoice.TaxSnapshot["notices"].([]interface{}); !ok || len(notices) != 0 {
 		t.Errorf("invoice taxSnapshot.notices = %#v, want an empty list", invoice.TaxSnapshot["notices"])
+	}
+	// The shared invoice is bound to a historical decision: the basis is omitted, not null.
+	if basis, present := invoice.TaxSnapshot["obligationBasis"]; present {
+		t.Errorf("invoice taxSnapshot.obligationBasis = %#v, want omitted", basis)
 	}
 
 	creditNote, err := serveJSON(t, corpusBody(t, "creditNote")).CreditNotes.Get("crn_c6_fixture")

@@ -91,6 +91,10 @@ type TaxDecision struct {
 	TransactionReporting *string `json:"transactionReporting"`
 	// PaymentReporting is "fr212", "ereporting" or "none".
 	PaymentReporting *string `json:"paymentReporting"`
+	// ObligationBasis is the read-only transmission basis frozen with the
+	// decision: "legal" or "voluntary_early_adoption". Nil when no obligation
+	// applies or historical information is unresolved, including omitted fields.
+	ObligationBasis *string `json:"obligationBasis,omitempty"`
 
 	// SettledObligations carries the axes French law settles DESPITE a
 	// non-final decision. It is nil when Status is "final": the three axes

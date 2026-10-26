@@ -1,6 +1,7 @@
 {
   "id": "taxdec_c6_fixture",
   "object": "tax_decision",
+  "obligationBasis": "legal",
   "livemode": false,
   "companyId": "cmp_test",
   "taxSource": "facturino",
