@@ -5,19 +5,19 @@ import "net/url"
 // VATBreakdownEntry is a single VAT rate entry in a VAT report.
 type VATBreakdownEntry struct {
 	Rate          string `json:"rate"`
-	TaxableAmount int    `json:"taxable_amount"`
-	VATAmount     int    `json:"vat_amount"`
+	TaxableAmount int    `json:"taxableAmount"`
+	VATAmount     int    `json:"vatAmount"`
 }
 
 // VATReport is a VAT summary for a given period. Amounts in centimes.
 type VATReport struct {
 	Object       string               `json:"object"`
 	Period       *ReportPeriod        `json:"period"`
-	VATBreakdown []*VATBreakdownEntry `json:"vat_breakdown"`
-	TotalHT      int                  `json:"total_ht"`
-	TotalVAT     int                  `json:"total_vat"`
-	TotalTTC     int                  `json:"total_ttc"`
-	InvoiceCount int                  `json:"invoice_count"`
+	VATBreakdown []*VATBreakdownEntry `json:"vatBreakdown"`
+	TotalHT      int                  `json:"totalHT"`
+	TotalVAT     int                  `json:"totalVAT"`
+	TotalTTC     int                  `json:"totalTTC"`
+	InvoiceCount int                  `json:"invoiceCount"`
 }
 
 // RevenueReport is a revenue summary for a given period. Amounts in centimes.
@@ -26,8 +26,8 @@ type RevenueReport struct {
 	Period          *ReportPeriod         `json:"period"`
 	Revenue         *RevenueBreakdown     `json:"revenue"`
 	Payments        *PaymentsBreakdown    `json:"payments"`
-	InvoiceCount    int                   `json:"invoice_count"`
-	CreditNoteCount int                   `json:"credit_note_count"`
+	InvoiceCount    int                   `json:"invoiceCount"`
+	CreditNoteCount int                   `json:"creditNoteCount"`
 	Breakdown       []*RevenuePeriodGroup `json:"breakdown,omitempty"`
 }
 
@@ -40,7 +40,7 @@ type ReportPeriod struct {
 // RevenueBreakdown holds invoiced, credit note, and net revenue totals.
 type RevenueBreakdown struct {
 	Invoiced    int `json:"invoiced"`
-	CreditNotes int `json:"credit_notes"`
+	CreditNotes int `json:"creditNotes"`
 	Net         int `json:"net"`
 }
 
@@ -55,8 +55,8 @@ type RevenuePeriodGroup struct {
 	Period          string             `json:"period"`
 	Revenue         *RevenueBreakdown  `json:"revenue"`
 	Payments        *PaymentsBreakdown `json:"payments"`
-	InvoiceCount    int                `json:"invoice_count"`
-	CreditNoteCount int                `json:"credit_note_count"`
+	InvoiceCount    int                `json:"invoiceCount"`
+	CreditNoteCount int                `json:"creditNoteCount"`
 }
 
 // VATReportParams are the query parameters for a VAT report.

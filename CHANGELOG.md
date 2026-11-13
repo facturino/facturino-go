@@ -4,7 +4,17 @@ All notable changes to the Facturino Go SDK are documented here. This project
 adheres to [Semantic Versioning](https://semver.org/) and
 [Keep a Changelog](https://keepachangelog.com/).
 
-## [Unreleased]
+## [2.13.0] - 2026-11-13
+
+### Fixed
+- `VATReport`, `RevenueReport` and their nested types read the camelCase fields the API sends (`vatBreakdown`, `taxableAmount`, `vatAmount`, `totalHT`, `totalVAT`, `totalTTC`, `invoiceCount`, `creditNotes`, `creditNoteCount`). The JSON tags were snake_case, so every report field decoded to its zero value. Go field names are unchanged.
+
+### Added
+- Optional `Job.Included`, `Job.Failed` (`*int`) and `Job.Truncated` (`*bool`) on a job of type `invoice_export`, and `ExportStatusResponse.Truncated` (`*bool`) on an invoice export status. `nil` on any other job.
+
+### Changed
+- `InvoiceService.GenerateAuditTrailPDF` is documented as not available yet: the API answers 501 `not_implemented` and creates no job. Use `GetAuditTrail` meanwhile.
+- `ExportService.ExportInvoices` documentation: without `Statuses`, credit notes are included in the `avoirs/` folder of the ZIP, `manifest.csv` carries additional columns, and the archive is limited to 5 000 pieces (`truncated: true` on the job).
 
 ## [2.12.0] - 2026-10-26
 

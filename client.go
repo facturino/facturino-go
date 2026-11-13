@@ -22,7 +22,7 @@ const (
 	defaultTimeout    = 30 * time.Second
 	apiVersion        = "v1"
 	apiDateVersion    = "2026-09-01"
-	sdkVersion        = "2.12.0"
+	sdkVersion        = "2.13.0"
 	defaultMaxRetries = 3
 )
 

@@ -26,6 +26,13 @@ type Job struct {
 	// populated once Status is "completed". ExpiresAt is its ISO 8601 expiry.
 	URL       string `json:"url,omitempty"`
 	ExpiresAt string `json:"expiresAt,omitempty"`
+
+	// Included, Failed and Truncated are set only on a job of type
+	// "invoice_export": the pieces in the archive, the pieces that could not
+	// be generated, and whether the archive was limited to 5 000 pieces.
+	Included  *int  `json:"included,omitempty"`
+	Failed    *int  `json:"failed,omitempty"`
+	Truncated *bool `json:"truncated,omitempty"`
 }
 
 // JobService operates on async jobs.

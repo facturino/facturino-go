@@ -29,6 +29,9 @@ type ExportStatusResponse struct {
 	Status      string `json:"status"`
 	CompanyID   string `json:"company_id"`
 	DownloadURL string `json:"download_url,omitempty"`
+	// Truncated is set only on an invoice export: true when the archive was
+	// limited to 5 000 pieces.
+	Truncated *bool `json:"truncated,omitempty"`
 }
 
 // InvoiceExportParams are the optional filters for a bulk invoice export.
@@ -84,6 +87,10 @@ func (s *ExportService) GetExportStatus(jobID string) (*ExportStatusResponse, er
 
 // ExportInvoices triggers a bulk export of finalized invoices as ZIP (Factur-X PDF + CII XML).
 // Pass nil to export every non-draft invoice, or filters to restrict by period and/or statuses.
+// Without Statuses, credit notes are included too (avoirs/ folder of the ZIP).
+// manifest.csv lists every piece with its type, totals, due date, payment status
+// and linked invoice. The archive holds at most 5 000 pieces; beyond that the job
+// carries truncated: true.
 func (s *ExportService) ExportInvoices(params *InvoiceExportParams) (*ExportInvoicesResponse, error) {
 	var resp ExportInvoicesResponse
 	err := s.client.post("/exports/invoices", params, &resp, nil)

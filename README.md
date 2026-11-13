@@ -8,7 +8,7 @@ Go client library for the [Facturino](https://facturino.com) API — developer-f
 ## Installation
 
 ```bash
-go get github.com/facturino/facturino-go/v2@v2.12.0
+go get github.com/facturino/facturino-go/v2@v2.13.0
 ```
 
 Requires Go 1.21+. No external dependencies.
@@ -946,6 +946,17 @@ fec, _ := client.Exports.GenerateFEC(&facturino.FECParams{
 
 job, _ := client.Jobs.Get(fec.ID)
 ```
+
+`client.Exports.ExportInvoices` starts a job of type `invoice_export`. Without
+`Statuses`, credit notes are included (`avoirs/` folder of the ZIP) and
+`manifest.csv` carries additional columns. The archive holds at most 5 000
+pieces; beyond that the job carries `Truncated: true`. On such a job, `Included`,
+`Failed` and `Truncated` are `*int` / `*bool` fields, `nil` for any other job
+type.
+
+`client.Invoices.GenerateAuditTrailPDF` is not available yet: the API answers
+`501 not_implemented` and creates no job. Use the JSON audit trail
+(`GetAuditTrail`) meanwhile.
 
 ### E-Reporting
 

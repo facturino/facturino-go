@@ -904,7 +904,8 @@ func (s *InvoiceService) GetAuditTrail(id string, params *ListParams) (*ListResp
 	return &resp, nil
 }
 
-// GenerateAuditTrailPDF triggers async audit trail PDF generation.
+// GenerateAuditTrailPDF is not available yet: the API answers 501 not_implemented
+// and creates no job. Use the JSON audit trail (GetAuditTrail) meanwhile.
 func (s *InvoiceService) GenerateAuditTrailPDF(id string) (*DocumentResponse, error) {
 	var resp DocumentResponse
 	err := s.client.post(fmt.Sprintf("/invoices/%s/audit-trail/pdf", id), nil, &resp, nil)
