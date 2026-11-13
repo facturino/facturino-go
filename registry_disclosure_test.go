@@ -12,7 +12,7 @@ func TestRegistryDisclosure(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	client, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) { w.Write(raw) })
+	client, _ := testServer(t, func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write(raw) })
 	result, err := client.Customers.Lookup(&CustomerLookupParams{SIRET: "00012345500008"})
 	if err != nil {
 		t.Fatal(err)
